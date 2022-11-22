@@ -76,7 +76,7 @@ func TestStringField(t *testing.T) {
 	validField := bconf.Field{
 		FieldType:   bconfconst.String,
 		Default:     "value",
-		Help:        "basic field",
+		Description: "basic field",
 		Enumeration: []any{"arg1", "arg2", "value"},
 	}
 
@@ -88,7 +88,7 @@ func TestStringField(t *testing.T) {
 	invalidFieldInvalidDefaultType := bconf.Field{
 		FieldType:   bconfconst.String,
 		Default:     2,
-		Help:        "basic field",
+		Description: "basic field",
 		Enumeration: []any{"arg1", "arg2", "value"},
 	}
 
@@ -107,7 +107,7 @@ func TestStringField(t *testing.T) {
 		FieldType:   bconfconst.String,
 		Required:    false,
 		Default:     "value",
-		Help:        "basic field",
+		Description: "basic field",
 		Enumeration: []any{1, 2, "3", 32.812, "forty-five", "value", true},
 	}
 
