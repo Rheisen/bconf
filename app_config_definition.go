@@ -3,16 +3,78 @@ package bconf
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/rheisen/bconf/bconfconst"
 )
 
 type AppConfigDefinition struct {
-	Name         string
-	ConfigFields map[string]*Field
-	KeyPrefix    string
-	Loaders      []string // in order
+	Name           string
+	Description    string
+	ConfigFields   map[string]*Field
+	KeyPrefix      string
+	Loaders        []string // in order
+	HandleHelpFlag bool
+}
+
+func (d *AppConfigDefinition) HelpText() string {
+	builder := strings.Builder{}
+
+	if d.Name != "" {
+		builder.WriteString(fmt.Sprintf("\nUsage of '%s':\n", d.Name))
+	} else {
+		builder.WriteString(fmt.Sprintf("\nUsage of '%s':\n", os.Args[0]))
+	}
+
+	if d.Description != "" {
+		builder.WriteString(fmt.Sprintf("%s\n\n", d.Description))
+	}
+
+	if len(d.ConfigFields) > 0 {
+		keys := make([]string, len(d.ConfigFields))
+		idx := 0
+		for key := range d.ConfigFields {
+			keys[idx] = key
+			idx = idx + 1
+		}
+		sort.Strings(keys)
+
+		type entry struct {
+			key   string
+			field *Field
+		}
+		requiredFields := []*entry{}
+		optionalFields := []*entry{}
+		for _, key := range keys {
+			field := d.ConfigFields[key]
+			if field.Required {
+				requiredFields = append(requiredFields, &entry{key: key, field: field})
+			} else {
+				optionalFields = append(optionalFields, &entry{key: key, field: field})
+			}
+		}
+
+		if len(requiredFields) > 0 {
+			builder.WriteString("Required Configuration:\n")
+			for _, entry := range requiredFields {
+				builder.WriteString(fmt.Sprintf("\t%s", entry.field.helpString(entry.key, d.KeyPrefix, d.Loaders)))
+			}
+		}
+
+		if len(optionalFields) > 0 {
+			builder.WriteString("Optional Configuration:\n")
+			for _, entry := range optionalFields {
+				builder.WriteString(fmt.Sprintf("\t%s", entry.field.helpString(entry.key, d.KeyPrefix, d.Loaders)))
+			}
+		}
+	}
+
+	return builder.String()
+}
+
+func (d *AppConfigDefinition) PrintHelpText() {
+	fmt.Printf("%s", d.HelpText())
 }
 
 func (d *AppConfigDefinition) GenerateFieldDefaults() []error {

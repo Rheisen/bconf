@@ -2,6 +2,7 @@ package bconf
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/rheisen/bconf/bconfconst"
@@ -136,6 +137,11 @@ func (c *AppConfig) GetDuration(key string) (time.Duration, error) {
 }
 
 func (c *AppConfig) initialize() []error {
+	if c.config.HandleHelpFlag && len(os.Args) > 1 && os.Args[1] == "--help" {
+		c.config.PrintHelpText()
+		os.Exit(0)
+	}
+
 	if errs := c.config.GenerateFieldDefaults(); len(errs) > 0 {
 		return errs
 	}

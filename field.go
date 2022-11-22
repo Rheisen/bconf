@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rheisen/bconf/bconfconst"
@@ -13,7 +14,7 @@ type Field struct {
 	FieldType        string
 	Required         bool
 	Default          any
-	Help             string
+	Description      string
 	Enumeration      []any
 	Validator        func(v any) error
 	DefaultGenerator func() (any, error)
@@ -218,4 +219,59 @@ func (f *Field) valueInEnumeration(value any) bool {
 	}
 
 	return false
+}
+
+func (f *Field) enumerationString() string {
+	builder := strings.Builder{}
+
+	if len(f.Enumeration) > 0 {
+		builder.WriteString("[")
+		for index, value := range f.Enumeration {
+			if index != 0 {
+				builder.WriteString(", ")
+			}
+			builder.WriteString(fmt.Sprintf("'%s'", value))
+		}
+		builder.WriteString("]")
+	}
+
+	return builder.String()
+}
+
+func (f *Field) helpString(key string, keyPrefix string, environments []string) string {
+	builder := strings.Builder{}
+	spaceBuffer := "\t\t"
+
+	builder.WriteString(fmt.Sprintf("%s %s\n", key, f.FieldType))
+	if f.Description != "" {
+		builder.WriteString(spaceBuffer)
+		builder.WriteString(fmt.Sprintf("%s\n", f.Description))
+	}
+	if len(f.Enumeration) > 0 {
+		builder.WriteString(spaceBuffer)
+		builder.WriteString(fmt.Sprintf("Accepted values: %s\n", f.enumerationString()))
+	}
+	if f.Default != nil {
+		builder.WriteString(spaceBuffer)
+		builder.WriteString(fmt.Sprintf("Default value: '%s'\n", f.Default))
+	}
+	if f.DefaultGenerator != nil {
+		builder.WriteString(spaceBuffer)
+		builder.WriteString("Default value: <generated-at-run-time>\n")
+	}
+
+	for _, environment := range environments {
+		switch environment {
+		case bconfconst.EnvironmentLoader:
+			builder.WriteString(spaceBuffer)
+			builder.WriteString(
+				fmt.Sprintf(
+					"Environment key: '%s'\n",
+					strings.ToUpper(fmt.Sprintf("%s_%s", keyPrefix, key)),
+				),
+			)
+		}
+	}
+
+	return builder.String()
 }

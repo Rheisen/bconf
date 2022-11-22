@@ -7,6 +7,13 @@ import (
 	"github.com/rheisen/bconf/bconfconst"
 )
 
+func TestHelpText(t *testing.T) {
+	def := baseAppConfigDefinition()
+
+	helpText := def.HelpText()
+	t.Logf("%s", helpText)
+}
+
 func TestAppConfigDefinition(t *testing.T) {
 	fields := map[string]*bconf.Field{
 		"app_id": {
@@ -43,4 +50,36 @@ func TestAppConfigDefinition(t *testing.T) {
 	// if appID != "generate-uuid-here" {
 	// 	t.Fatalf("unexpected value for appID: %s", appID)
 	// }
+}
+
+func baseAppConfigDefinition() bconf.AppConfigDefinition {
+	fields := map[string]*bconf.Field{
+		"app_id": {
+			FieldType:   bconfconst.String,
+			Description: "Application identifier for use in application log messages and tracing",
+			DefaultGenerator: func() (any, error) {
+				return "generated-default", nil
+			},
+		},
+		"session_secret": {
+			FieldType:   bconfconst.String,
+			Description: "Session secret used for user authentication",
+			Required:    true,
+		},
+		"log_config": {
+			FieldType:   bconfconst.String,
+			Description: "Logging configuration presets",
+			Default:     "production",
+			Enumeration: []any{"production", "development"},
+		},
+	}
+	def := bconf.AppConfigDefinition{
+		Name:         "bconf_example_app",
+		Description:  "Example-App is an HTTP Application for accessing weather data",
+		ConfigFields: fields,
+		KeyPrefix:    "bconf",
+		Loaders:      []string{bconfconst.EnvironmentLoader},
+	}
+
+	return def
 }
