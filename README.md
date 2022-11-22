@@ -60,7 +60,10 @@ if errs != nil && len(errs) > 0 {
     // handle configuration errors
 }
 
-appLogLevel, _ := b.GetString("log_level") // returns the log level found in order of: default -> ENV -> Flag order
+appLogLevel, err := b.GetString("log_level") // returns the log level found in order of: default -> ENV -> Flag order
+if err != nil {
+    // handle retrieval error
+}
 ```
 
 In order to create a `bconf.AppConfig`, you must supply a `bconf.ConfigDefinition`. A `bconf.ConfigDefinition` provides

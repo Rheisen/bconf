@@ -6,8 +6,8 @@ package bconf
 // b) Invalid Config Fields -- occurs when config fields do not pass requirements / enumeration checks / validation.
 func NewAppConfig(d AppConfigDefinition) (*AppConfig, []error) {
 	configDefinition := d.clone()
-	config := &AppConfig{configDefinition: &configDefinition}
-	if errs := config.initialize(); errs != nil && len(errs) > 0 {
+	config := &AppConfig{config: &configDefinition}
+	if errs := config.initialize(); len(errs) > 0 {
 		return config, errs
 	}
 
