@@ -120,8 +120,10 @@ func (d *AppConfigDefinition) Validate() []error {
 
 func (d *AppConfigDefinition) clone() AppConfigDefinition {
 	clone := AppConfigDefinition{
-		Name:      d.Name,
-		KeyPrefix: d.KeyPrefix,
+		Name:           d.Name,
+		Description:    d.Description,
+		KeyPrefix:      d.KeyPrefix,
+		HandleHelpFlag: d.HandleHelpFlag,
 	}
 
 	if len(d.Loaders) > 0 {
