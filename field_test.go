@@ -20,18 +20,19 @@ func TestFieldTypes(t *testing.T) {
 		"bool-field-with-default": {
 			FieldType:       bconfconst.Bool,
 			ValidDefaults:   []any{true, false},
-			InvalidDefaults: []any{},
+			InvalidDefaults: []any{"true", "false", 0, 1, -1},
 		},
 		"string-field-with-default": {
-			FieldType:     bconfconst.String,
-			ValidDefaults: []any{"string-default", "", "-"},
+			FieldType:       bconfconst.String,
+			ValidDefaults:   []any{"string-default", "", "-"},
+			InvalidDefaults: []any{1, true, false},
 		},
 		"int-field-with-default": {
 			FieldType:     bconfconst.Int,
 			ValidDefaults: []any{-512, -256, 0, 256, 512},
 		},
 		"float-64-field-with-default": {
-			FieldType:       bconfconst.Float64,
+			FieldType:       bconfconst.Float,
 			ValidDefaults:   []any{-1024.64, -512.0, 0.0, 512.0, 1024.64},
 			InvalidDefaults: []any{1024, 0, "1024", true, false},
 		},

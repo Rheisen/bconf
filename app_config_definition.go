@@ -5,17 +5,78 @@ import (
 	"os"
 	"sort"
 	"strings"
-
-	"github.com/rheisen/bconf/bconfconst"
 )
 
 type AppConfigDefinition struct {
-	Name           string
-	Description    string
-	ConfigFields   map[string]*Field
-	KeyPrefix      string
-	Loaders        []string // in order
+	// Name is used in --help text output to identify the application.
+	Name string
+	// Description is used in --help text output to describe the application.
+	Description string
+	// ConfigFields defines a mapping to configuration fields.
+	ConfigFields map[string]*Field
+	// Loaders defines where field values are extracted from. Values found from later loaders take presedence.
+	Loaders []Loader
+	// HandleHelpFlag defines if the app configuration should handle the --help flag.
 	HandleHelpFlag bool
+}
+
+func (d *AppConfigDefinition) Clone() AppConfigDefinition {
+	clone := *d
+
+	if len(d.Loaders) > 0 {
+		clone.Loaders = make([]Loader, len(d.Loaders))
+		for index, value := range d.Loaders {
+			clone.Loaders[index] = value.Clone()
+		}
+	}
+
+	if len(d.ConfigFields) > 0 {
+		clone.ConfigFields = make(map[string]*Field, len(d.ConfigFields))
+		for key, field := range d.ConfigFields {
+			newField := *field
+			clone.ConfigFields[key] = &newField
+		}
+	}
+
+	return clone
+}
+
+func (d *AppConfigDefinition) GenerateFieldDefaults() []error {
+	errs := []error{}
+
+	if d.ConfigFields != nil {
+		for _, field := range d.ConfigFields {
+			if err := field.GenerateDefault(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+
+	return errs
+}
+
+func (d *AppConfigDefinition) Validate() []error {
+	errs := []error{}
+
+	if d.Loaders != nil {
+		loaderNames := make(map[string]struct{}, len(d.Loaders))
+		for _, loader := range d.Loaders {
+			if _, found := loaderNames[loader.Name()]; found {
+				errs = append(errs, fmt.Errorf("duplicate loader name found: '%s'", loader.Name()))
+			}
+		}
+	}
+
+	if d.ConfigFields != nil {
+		for _, field := range d.ConfigFields {
+			if err := field.GenerateDefault(); err != nil {
+				errs = append(errs, err)
+			}
+			errs = append(errs, field.Validate()...)
+		}
+	}
+
+	return errs
 }
 
 func (d *AppConfigDefinition) HelpText() string {
@@ -40,32 +101,28 @@ func (d *AppConfigDefinition) HelpText() string {
 		}
 		sort.Strings(keys)
 
-		type entry struct {
-			key   string
-			field *Field
-		}
-		requiredFields := []*entry{}
-		optionalFields := []*entry{}
+		requiredFields := []string{}
+		optionalFields := []string{}
 		for _, key := range keys {
 			field := d.ConfigFields[key]
 			if field.Required {
-				requiredFields = append(requiredFields, &entry{key: key, field: field})
+				requiredFields = append(requiredFields, key)
 			} else {
-				optionalFields = append(optionalFields, &entry{key: key, field: field})
+				optionalFields = append(optionalFields, key)
 			}
 		}
 
 		if len(requiredFields) > 0 {
 			builder.WriteString("Required Configuration:\n")
-			for _, entry := range requiredFields {
-				builder.WriteString(fmt.Sprintf("\t%s", entry.field.helpString(entry.key, d.KeyPrefix, d.Loaders)))
+			for _, key := range requiredFields {
+				builder.WriteString(fmt.Sprintf("\t%s", d.fieldHelpString(key)))
 			}
 		}
 
 		if len(optionalFields) > 0 {
 			builder.WriteString("Optional Configuration:\n")
-			for _, entry := range optionalFields {
-				builder.WriteString(fmt.Sprintf("\t%s", entry.field.helpString(entry.key, d.KeyPrefix, d.Loaders)))
+			for _, key := range optionalFields {
+				builder.WriteString(fmt.Sprintf("\t%s", d.fieldHelpString(key)))
 			}
 		}
 	}
@@ -73,114 +130,61 @@ func (d *AppConfigDefinition) HelpText() string {
 	return builder.String()
 }
 
-func (d *AppConfigDefinition) PrintHelpText() {
-	fmt.Printf("%s", d.HelpText())
-}
-
-func (d *AppConfigDefinition) GenerateFieldDefaults() []error {
-	errs := []error{}
-
-	if d.ConfigFields != nil {
-		for _, field := range d.ConfigFields {
-			if err := field.GenerateDefault(); err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-
-	return errs
-}
-
-func (d *AppConfigDefinition) Validate() []error {
-	errs := []error{}
-
-	if d.Loaders != nil {
-		for _, loader := range d.Loaders {
-			if _, found := bconfconst.LoadersMap()[loader]; !found {
-				errs = append(errs, fmt.Errorf(
-					"invalid loader, expected one-of '%v', found '%s'",
-					bconfconst.Loaders(),
-					loader,
-				))
-			}
-		}
-	}
-
-	if d.ConfigFields != nil {
-		for _, field := range d.ConfigFields {
-			if err := field.GenerateDefault(); err != nil {
-				errs = append(errs, err)
-			}
-			errs = append(errs, field.Validate()...)
-		}
-	}
-
-	return errs
-}
-
-func (d *AppConfigDefinition) clone() AppConfigDefinition {
-	clone := AppConfigDefinition{
-		Name:           d.Name,
-		Description:    d.Description,
-		KeyPrefix:      d.KeyPrefix,
-		HandleHelpFlag: d.HandleHelpFlag,
-	}
-
-	if len(d.Loaders) > 0 {
-		clone.Loaders = make([]string, len(d.Loaders))
-		for index, value := range d.Loaders {
-			clone.Loaders[index] = value
-		}
-	}
-
-	if len(d.ConfigFields) > 0 {
-		clone.ConfigFields = make(map[string]*Field, len(d.ConfigFields))
-		for key, value := range d.ConfigFields {
-			clone.ConfigFields[key] = value
-		}
-	}
-
-	return clone
-}
-
-func (d *AppConfigDefinition) setDefaults() {
-	if d.Name == "" {
-		d.Name = "app_config"
-	}
-	if d.Loaders == nil || len(d.Loaders) == 0 {
-		d.Loaders = []string{
-			bconfconst.EnvironmentLoader,
-		}
-	}
-}
-
 func (d *AppConfigDefinition) loadFields() []error {
 	errs := []error{}
 
 	for _, loader := range d.Loaders {
-		switch loader {
-		case bconfconst.EnvironmentLoader:
-			for key, field := range d.ConfigFields {
-				envKey := ""
-				if d.KeyPrefix != "" {
-					envKey = fmt.Sprintf("%s_%s", d.KeyPrefix, key)
-				} else {
-					envKey = key
-				}
-
-				envKey = strings.ToUpper(envKey)
-				value, found := os.LookupEnv(envKey)
-				if found {
-					if err := field.set(bconfconst.EnvironmentLoader, value); err != nil {
-						errs = append(errs, fmt.Errorf("invalid field value: %w", err))
-					}
+		for key, field := range d.ConfigFields {
+			value, found := loader.Get(key)
+			if found {
+				if err := field.set(loader.Name(), value); err != nil {
+					errs = append(errs, fmt.Errorf("invalid field value: %w", err))
 				}
 			}
-		case bconfconst.FlagLoader:
-		default:
-			errs = append(errs, fmt.Errorf("unsupported loader, found '%s'", loader))
 		}
 	}
 
 	return errs
+}
+
+func (d *AppConfigDefinition) printHelpText() {
+	fmt.Printf("%s", d.HelpText())
+}
+
+func (d *AppConfigDefinition) fieldHelpString(key string) string {
+	field := d.ConfigFields[key]
+	if field == nil {
+		return ""
+	}
+
+	builder := strings.Builder{}
+	spaceBuffer := "\t\t"
+
+	builder.WriteString(fmt.Sprintf("%s %s\n", key, field.FieldType))
+	if field.Description != "" {
+		builder.WriteString(spaceBuffer)
+		builder.WriteString(fmt.Sprintf("%s\n", field.Description))
+	}
+	if len(field.Enumeration) > 0 {
+		builder.WriteString(spaceBuffer)
+		builder.WriteString(fmt.Sprintf("Accepted values: %s\n", field.enumerationString()))
+	}
+	if field.Default != nil {
+		builder.WriteString(spaceBuffer)
+		builder.WriteString(fmt.Sprintf("Default value: '%v'\n", field.Default))
+	}
+	if field.DefaultGenerator != nil {
+		builder.WriteString(spaceBuffer)
+		builder.WriteString("Default value: <generated-at-run-time>\n")
+	}
+
+	for _, loader := range d.Loaders {
+		helpString := loader.HelpString(key)
+		if helpString != "" {
+			builder.WriteString(spaceBuffer)
+			builder.WriteString(fmt.Sprintf("%s\n", helpString))
+		}
+	}
+
+	return builder.String()
 }

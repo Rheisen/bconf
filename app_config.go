@@ -12,6 +12,17 @@ type AppConfig struct {
 	config *AppConfigDefinition
 }
 
+func (c *AppConfig) GetKeys() []string {
+	keys := make([]string, len(c.config.ConfigFields))
+	idx := 0
+	for key := range c.config.ConfigFields {
+		keys[idx] = key
+		idx += 1
+	}
+
+	return keys
+}
+
 func (c *AppConfig) GetField(key string) (Field, error) {
 	field, found := c.config.ConfigFields[key]
 	if !found {
@@ -22,18 +33,9 @@ func (c *AppConfig) GetField(key string) (Field, error) {
 }
 
 func (c *AppConfig) GetString(key string) (string, error) {
-	field, err := c.GetField(key)
+	fieldValue, err := c.getFieldValue(key, bconfconst.String)
 	if err != nil {
 		return "", err
-	}
-
-	if field.FieldType != bconfconst.String {
-		return "", fmt.Errorf("incorrect type for value matching key '%s'", key)
-	}
-
-	fieldValue, err := field.GetValue()
-	if err != nil {
-		return "", fmt.Errorf("no set value for key '%s'", key)
 	}
 
 	val, ok := fieldValue.(string)
@@ -44,19 +46,24 @@ func (c *AppConfig) GetString(key string) (string, error) {
 	return val, nil
 }
 
+func (c *AppConfig) GetStrings(key string) ([]string, error) {
+	fieldValue, err := c.getFieldValue(key, bconfconst.Strings)
+	if err != nil {
+		return nil, err
+	}
+
+	val, ok := fieldValue.([]string)
+	if !ok {
+		return nil, fmt.Errorf("problem parsing value for key '%s'", key)
+	}
+
+	return val, nil
+}
+
 func (c *AppConfig) GetInt(key string) (int, error) {
-	field, err := c.GetField(key)
+	fieldValue, err := c.getFieldValue(key, bconfconst.Int)
 	if err != nil {
 		return 0, err
-	}
-
-	if field.FieldType != bconfconst.Int {
-		return 0, fmt.Errorf("incorrect type for value matching key '%s'", key)
-	}
-
-	fieldValue, err := field.GetValue()
-	if err != nil {
-		return 0, fmt.Errorf("no set value for key '%s'", key)
 	}
 
 	val, ok := fieldValue.(int)
@@ -67,19 +74,24 @@ func (c *AppConfig) GetInt(key string) (int, error) {
 	return val, nil
 }
 
+func (c *AppConfig) GetInts(key string) ([]int, error) {
+	fieldValue, err := c.getFieldValue(key, bconfconst.Ints)
+	if err != nil {
+		return nil, err
+	}
+
+	val, ok := fieldValue.([]int)
+	if !ok {
+		return nil, fmt.Errorf("problem parsing value for key '%s'", key)
+	}
+
+	return val, nil
+}
+
 func (c *AppConfig) GetBool(key string) (bool, error) {
-	field, err := c.GetField(key)
+	fieldValue, err := c.getFieldValue(key, bconfconst.Bool)
 	if err != nil {
 		return false, err
-	}
-
-	if field.FieldType != bconfconst.Bool {
-		return false, fmt.Errorf("incorrect type for value matching key '%s'", key)
-	}
-
-	fieldValue, err := field.GetValue()
-	if err != nil {
-		return false, fmt.Errorf("no set value for key '%s'", key)
 	}
 
 	val, ok := fieldValue.(bool)
@@ -90,19 +102,24 @@ func (c *AppConfig) GetBool(key string) (bool, error) {
 	return val, nil
 }
 
+func (c *AppConfig) GetBools(key string) ([]bool, error) {
+	fieldValue, err := c.getFieldValue(key, bconfconst.Bools)
+	if err != nil {
+		return nil, err
+	}
+
+	val, ok := fieldValue.([]bool)
+	if !ok {
+		return nil, fmt.Errorf("problem parsing value for key '%s'", key)
+	}
+
+	return val, nil
+}
+
 func (c *AppConfig) GetTime(key string) (time.Time, error) {
-	field, err := c.GetField(key)
+	fieldValue, err := c.getFieldValue(key, bconfconst.Bool)
 	if err != nil {
 		return time.Time{}, err
-	}
-
-	if field.FieldType != bconfconst.Time {
-		return time.Time{}, fmt.Errorf("incorrect type for value matching key '%s'", key)
-	}
-
-	fieldValue, err := field.GetValue()
-	if err != nil {
-		return time.Time{}, fmt.Errorf("no set value for key '%s'", key)
 	}
 
 	val, ok := fieldValue.(time.Time)
@@ -113,19 +130,24 @@ func (c *AppConfig) GetTime(key string) (time.Time, error) {
 	return val, nil
 }
 
+func (c *AppConfig) GetTimes(key string) ([]time.Time, error) {
+	fieldValue, err := c.getFieldValue(key, bconfconst.Times)
+	if err != nil {
+		return nil, err
+	}
+
+	val, ok := fieldValue.([]time.Time)
+	if !ok {
+		return nil, fmt.Errorf("problem parsing value for key '%s'", key)
+	}
+
+	return val, nil
+}
+
 func (c *AppConfig) GetDuration(key string) (time.Duration, error) {
-	field, err := c.GetField(key)
+	fieldValue, err := c.getFieldValue(key, bconfconst.Bool)
 	if err != nil {
 		return 0, err
-	}
-
-	if field.FieldType != bconfconst.Duration {
-		return 0, fmt.Errorf("incorrect type for value matching key '%s'", key)
-	}
-
-	fieldValue, err := field.GetValue()
-	if err != nil {
-		return 0, fmt.Errorf("no set value for key '%s'", key)
 	}
 
 	val, ok := fieldValue.(time.Duration)
@@ -136,9 +158,23 @@ func (c *AppConfig) GetDuration(key string) (time.Duration, error) {
 	return val, nil
 }
 
+func (c *AppConfig) GetDurations(key string) ([]time.Duration, error) {
+	fieldValue, err := c.getFieldValue(key, bconfconst.Durations)
+	if err != nil {
+		return nil, err
+	}
+
+	val, ok := fieldValue.([]time.Duration)
+	if !ok {
+		return nil, fmt.Errorf("problem parsing value for key '%s'", key)
+	}
+
+	return val, nil
+}
+
 func (c *AppConfig) initialize() []error {
 	if c.config.HandleHelpFlag && len(os.Args) > 1 && os.Args[1] == "--help" {
-		c.config.PrintHelpText()
+		c.config.printHelpText()
 		os.Exit(0)
 	}
 
@@ -149,10 +185,27 @@ func (c *AppConfig) initialize() []error {
 		return errs
 	}
 
-	c.config.setDefaults()
 	if errs := c.config.loadFields(); len(errs) > 0 {
 		return errs
 	}
 
 	return nil
+}
+
+func (c *AppConfig) getFieldValue(key string, expectedType string) (any, error) {
+	field, err := c.GetField(key)
+	if err != nil {
+		return nil, err
+	}
+
+	if field.FieldType != expectedType {
+		return nil, fmt.Errorf("incorrect type for value matching key '%s'", key)
+	}
+
+	fieldValue, err := field.GetValue()
+	if err != nil {
+		return nil, fmt.Errorf("no set value for key '%s'", key)
+	}
+
+	return fieldValue, nil
 }

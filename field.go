@@ -152,12 +152,12 @@ func (f *Field) GetValue() (any, error) {
 	return nil, fmt.Errorf("empty field value")
 }
 
-func (f *Field) GetValueFrom(configLoader string) (any, error) {
+func (f *Field) GetValueFrom(loader string) (any, error) {
 	if f.fieldValue == nil {
 		return nil, fmt.Errorf("")
 	}
 
-	value, found := f.fieldValue[configLoader]
+	value, found := f.fieldValue[loader]
 	if !found {
 		return nil, fmt.Errorf("")
 	}
@@ -165,7 +165,7 @@ func (f *Field) GetValueFrom(configLoader string) (any, error) {
 	return value, nil
 }
 
-func (f *Field) set(environment string, value string) error {
+func (f *Field) set(loaderName string, value string) error {
 	parsedValue, err := f.parseString(value)
 	if err != nil {
 		return fmt.Errorf("problem parsing field value to field type: %w", err)
@@ -176,15 +176,15 @@ func (f *Field) set(environment string, value string) error {
 	}
 
 	if f.fieldFound == nil {
-		f.fieldFound = []string{environment}
+		f.fieldFound = []string{loaderName}
 	} else {
-		f.fieldFound = append(f.fieldFound, environment)
+		f.fieldFound = append(f.fieldFound, loaderName)
 	}
 
 	if f.fieldValue == nil {
-		f.fieldValue = map[string]any{environment: parsedValue}
+		f.fieldValue = map[string]any{loaderName: parsedValue}
 	} else {
-		f.fieldValue[environment] = value
+		f.fieldValue[loaderName] = value
 	}
 
 	return nil
@@ -233,44 +233,6 @@ func (f *Field) enumerationString() string {
 			builder.WriteString(fmt.Sprintf("'%s'", value))
 		}
 		builder.WriteString("]")
-	}
-
-	return builder.String()
-}
-
-func (f *Field) helpString(key string, keyPrefix string, environments []string) string {
-	builder := strings.Builder{}
-	spaceBuffer := "\t\t"
-
-	builder.WriteString(fmt.Sprintf("%s %s\n", key, f.FieldType))
-	if f.Description != "" {
-		builder.WriteString(spaceBuffer)
-		builder.WriteString(fmt.Sprintf("%s\n", f.Description))
-	}
-	if len(f.Enumeration) > 0 {
-		builder.WriteString(spaceBuffer)
-		builder.WriteString(fmt.Sprintf("Accepted values: %s\n", f.enumerationString()))
-	}
-	if f.Default != nil {
-		builder.WriteString(spaceBuffer)
-		builder.WriteString(fmt.Sprintf("Default value: '%s'\n", f.Default))
-	}
-	if f.DefaultGenerator != nil {
-		builder.WriteString(spaceBuffer)
-		builder.WriteString("Default value: <generated-at-run-time>\n")
-	}
-
-	for _, environment := range environments {
-		switch environment {
-		case bconfconst.EnvironmentLoader:
-			builder.WriteString(spaceBuffer)
-			builder.WriteString(
-				fmt.Sprintf(
-					"Environment key: '%s'\n",
-					strings.ToUpper(fmt.Sprintf("%s_%s", keyPrefix, key)),
-				),
-			)
-		}
 	}
 
 	return builder.String()

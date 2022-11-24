@@ -11,7 +11,71 @@ func TestHelpText(t *testing.T) {
 	def := baseAppConfigDefinition()
 
 	helpText := def.HelpText()
-	t.Logf("%s", helpText)
+	expectedHelpText := `
+Usage of 'bconf_example_app':
+Example-App is an HTTP Application for accessing weather data
+
+Required Configuration:
+	session_secret string
+		Session secret used for user authentication
+		Environment key: 'BCONF_SESSION_SECRET'
+Optional Configuration:
+	app_id string
+		Application identifier for use in application log messages and tracing
+		Default value: <generated-at-run-time>
+		Environment key: 'BCONF_APP_ID'
+	log_color bool
+		Log in color when console logging is set
+		Default value: 'true'
+		Environment key: 'BCONF_LOG_COLOR'
+	log_config string
+		Logging configuration presets
+		Accepted values: ['production', 'development']
+		Default value: 'production'
+		Environment key: 'BCONF_LOG_CONFIG'
+`
+	if helpText != expectedHelpText {
+		t.Fatalf("unexpected help text value, expected:%sfound:%s", expectedHelpText, helpText)
+	}
+}
+
+func TestClone(t *testing.T) {
+	def := baseAppConfigDefinition()
+	clone := def.Clone()
+
+	newName := "New definition name"
+	newDescription := "New definition description"
+	newAppIDDescription := "New app_id description"
+
+	// Test editing definition fields
+	def.Name = newName
+	def.Description = newDescription
+
+	if clone.Name == newName {
+		t.Fatalf("unexpected 'Name' value in cloned app config definition: %s", clone.Name)
+	}
+	if clone.Description == newDescription {
+		t.Fatalf("unexpected 'Description' value in cloned app config definition: %s", clone.Description)
+	}
+
+	// Test editing a config field
+	def.ConfigFields["app_id"].Description = newAppIDDescription
+	if def.ConfigFields["app_id"].Description != newAppIDDescription {
+		t.Fatalf("problem setting app config definition 'app_id' description")
+	}
+	if clone.ConfigFields["app_id"].Description == "New app_id description" {
+		t.Fatalf("unexpected value in cloned app config definition: %s", clone.ConfigFields["app_id"].Description)
+	}
+
+	// Test deleting a config fields map value
+	delete(def.ConfigFields, "app_id")
+	if _, found := def.ConfigFields["app_id"]; found {
+		t.Fatalf("problem deleting app config definition entry")
+	}
+
+	if _, found := clone.ConfigFields["app_id"]; !found {
+		t.Fatalf("problem finding 'app_id' field on app config definition clone after deleting from original")
+	}
 }
 
 func TestAppConfigDefinition(t *testing.T) {
@@ -26,8 +90,7 @@ func TestAppConfigDefinition(t *testing.T) {
 	def := bconf.AppConfigDefinition{
 		Name:         "app_config_test",
 		ConfigFields: fields,
-		KeyPrefix:    "bconf_",
-		Loaders:      []string{bconfconst.EnvironmentLoader},
+		Loaders:      []bconf.Loader{&bconf.EnvironmentLoader{KeyPrefix: "bconf"}},
 	}
 
 	if errs := def.GenerateFieldDefaults(); len(errs) > 0 {
@@ -37,19 +100,6 @@ func TestAppConfigDefinition(t *testing.T) {
 	if errs := def.Validate(); len(errs) > 0 {
 		t.Fatalf("unexpected errors validating fields: %v", errs)
 	}
-	// appConfig, errs := bconf.NewAppConfig(def)
-	// if len(errs) > 0 {
-	// 	t.Fatalf("unexpected errors: %s", errs[0])
-	// }
-
-	// appID, err := appConfig.GetString("app_id")
-	// if err != nil {
-	// 	t.Fatalf("unexpected error getting appID: %s", err)
-	// }
-
-	// if appID != "generate-uuid-here" {
-	// 	t.Fatalf("unexpected value for appID: %s", appID)
-	// }
 }
 
 func baseAppConfigDefinition() bconf.AppConfigDefinition {
@@ -72,13 +122,17 @@ func baseAppConfigDefinition() bconf.AppConfigDefinition {
 			Default:     "production",
 			Enumeration: []any{"production", "development"},
 		},
+		"log_color": {
+			FieldType:   bconfconst.Bool,
+			Description: "Log in color when console logging is set",
+			Default:     true,
+		},
 	}
 	def := bconf.AppConfigDefinition{
 		Name:         "bconf_example_app",
 		Description:  "Example-App is an HTTP Application for accessing weather data",
 		ConfigFields: fields,
-		KeyPrefix:    "bconf",
-		Loaders:      []string{bconfconst.EnvironmentLoader},
+		Loaders:      []bconf.Loader{&bconf.EnvironmentLoader{KeyPrefix: "bconf"}},
 	}
 
 	return def

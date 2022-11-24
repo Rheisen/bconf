@@ -20,15 +20,14 @@ func TestNewAppConfig(t *testing.T) {
 	def := bconf.AppConfigDefinition{
 		Name:         "app_config_test",
 		ConfigFields: fields,
-		KeyPrefix:    "bconf",
-		Loaders:      []string{bconfconst.EnvironmentLoader},
+		Loaders:      []bconf.Loader{&bconf.EnvironmentLoader{KeyPrefix: "bconf"}},
 	}
 
 	// Phony environment
 
 	os.Setenv("BCONF_APP_ID", "-")
 
-	appConfig, errs := bconf.NewAppConfig(def)
+	appConfig, errs := bconf.NewAppConfig(&def)
 	if len(errs) > 0 {
 		t.Fatalf("unexpected errors: %s", errs[0])
 	}

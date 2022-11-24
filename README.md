@@ -3,6 +3,12 @@
 Bconf is an opinionated configuration framework that makes it easy to load and validate configuration values from
 a variety of supported "configuration loaders", e.g. environment variables, flags, etc.
 
+### Installing
+
+```sh
+go get github.com/rheisen/bconf
+```
+
 ### Example
 
 Below is an example of a `bconf.AppConfig`. Below this code block the behavior of the example is discussed.
@@ -12,12 +18,14 @@ baseConfig, errs := bconf.NewAppConfig(
     bconf.ConfigDefinition{
         Name: "external_http_api",
         KeyPrefix: "ext_http_api",
-        ConfigFields: map[string]bconf.Field{
-            "session_secret": bconf.Field{
+        HandleHelpFlag: true,
+        Loaders: []string{bconfconst.EnvironmentLoader, bconfconst.FlagLoader},
+        ConfigFields: map[string]*bconf.Field{
+            "session_secret": {
                 FieldType: bconfconst.String,
+                Description: "Application secret for session management",
                 Required: true,
-                Help: "Application secret for session management",
-                Validator: func(fieldValue any, config *AppConfig) error {
+                Validator: func(fieldValue any) error {
                     secret := fieldValue.(string)
 
                     minLength := 20
@@ -30,29 +38,31 @@ baseConfig, errs := bconf.NewAppConfig(
                     }
                 },
             },
-            "log_level": bconf.Field{
-                FieldType: "string",
+            "log_level": {
+                FieldType: bconfconst.String,
+                Description: "Application logging level",
                 Default: "info",
-                Help: "Application logging level",
                 Enumeration: []any{"debug","info","warn","error"},
             },
-            "log_format": bconf.Field{
-                FieldType: "string",
+            "log_format": {
+                FieldType: bconfconst.String,
+                Description: "Application logging format",
                 Default: "json",
-                Help: "Application logging format",
                 Enumeration: []any{"console", "json"},
             },
             "log_color_enabled": bconf.Field{
+                FieldType: bconfconst.Bool,
+                Description: "Application colored logs when format is 'console'",
+                Default: true,
             },
             "app_id": bconf.Field{
-                FieldType: "string",
-                DefaultGenerator: func (config *AppConfig) (any, error) {
-                    return fmt.Sprintf("%s", uuid.NewV4()), nil
+                FieldType: bconfconst.String,
+                Description: "Application identifier",
+                DefaultGenerator: func () (any, error) {
+                    return fmt.Sprintf("%s", uuid.NewV4().String()), nil
                 },
-                Help: "Application identifier",
             },
         },
-        Loaders: []string{bconfconst.EnvironmentLoader, bconfconst.FlagLoader},
     }
 )
 
@@ -66,11 +76,11 @@ if err != nil {
 }
 ```
 
-In order to create a `bconf.AppConfig`, you must supply a `bconf.ConfigDefinition`. A `bconf.ConfigDefinition` provides
-public fields that enable end-users to specify the behavior around loading application configuration values.
+In order to create a `bconf.AppConfig`, you must supply a `bconf.AppConfigDefinition`. A `bconf.AppConfigDefinition`
+provides public fields that enable end-users to specify the behavior around loading application configuration values.
 
-In the example above, the `ConfigFields` parameter of the `bconf.ConfigDefinition` provides a convenient way to map
-a configuration key to a `bonf.Field`. Similar to how a `bconf.ConfigDefinition` allows end-users to specify the
+In the example above, the `ConfigFields` parameter of the `bconf.AppConfigDefinition` provides a convenient way to map
+a configuration key to a `bonf.Field`. Similar to how a `bconf.AppConfigDefinition` allows end-users to specify the
 behavior around loading configuration values, a `bconf.Field` is a structure that allows an end-user to specify the
 desired behavior of a specific configuration value.
 
