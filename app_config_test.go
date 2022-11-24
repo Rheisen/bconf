@@ -49,6 +49,10 @@ func TestNewAppConfig(t *testing.T) {
 		t.Fatalf("unexpected error getting appConfig string value: %s", err)
 	}
 
+	if lookupValue != "-" {
+		t.Fatalf("unexpected app_id value, expected '%s', found '%s'", "-", lookupValue)
+	}
+
 	t.Log(lookupValue)
 
 	// if appID != "generate-uuid-here" {

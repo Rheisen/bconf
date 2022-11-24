@@ -175,6 +175,12 @@ func (f *Field) set(loaderName string, value string) error {
 		return fmt.Errorf("parsed value not found in enumeration list")
 	}
 
+	if f.Validator != nil {
+		if err := f.Validator(parsedValue); err != nil {
+			return fmt.Errorf("validation error: %w", err)
+		}
+	}
+
 	if f.fieldFound == nil {
 		f.fieldFound = []string{loaderName}
 	} else {
@@ -194,14 +200,60 @@ func (f *Field) parseString(value string) (any, error) {
 	switch f.FieldType {
 	case bconfconst.String:
 		return value, nil
+	case bconfconst.Strings:
+		return strings.Split(value, ","), nil
 	case bconfconst.Bool:
 		return strconv.ParseBool(value)
+	case bconfconst.Bools:
+		list := strings.Split(value, ",")
+		values := make([]bool, len(list))
+		for idx, elem := range list {
+			parsedValue, err := strconv.ParseBool(elem)
+			if err != nil {
+				return nil, err
+			}
+			values[idx] = parsedValue
+		}
+		return values, nil
 	case bconfconst.Int:
 		return strconv.Atoi(value)
+	case bconfconst.Ints:
+		list := strings.Split(value, ",")
+		values := make([]int, len(list))
+		for idx, elem := range list {
+			parsedValue, err := strconv.Atoi(elem)
+			if err != nil {
+				return nil, err
+			}
+			values[idx] = parsedValue
+		}
+		return values, nil
 	case bconfconst.Time:
 		return time.Parse(time.RFC3339, value)
+	case bconfconst.Times:
+		list := strings.Split(value, ",")
+		values := make([]time.Time, len(list))
+		for idx, elem := range list {
+			parsedValue, err := time.Parse(time.RFC3339, elem)
+			if err != nil {
+				return nil, err
+			}
+			values[idx] = parsedValue
+		}
+		return values, nil
 	case bconfconst.Duration:
 		return time.ParseDuration(value)
+	case bconfconst.Durations:
+		list := strings.Split(value, ",")
+		values := make([]time.Duration, len(list))
+		for idx, elem := range list {
+			parsedValue, err := time.ParseDuration(elem)
+			if err != nil {
+				return nil, err
+			}
+			values[idx] = parsedValue
+		}
+		return values, nil
 	default:
 		return "", fmt.Errorf("unsupported field type: %s", f.FieldType)
 	}
