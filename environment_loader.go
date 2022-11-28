@@ -23,6 +23,12 @@ func (l *EnvironmentLoader) Get(key string) (string, bool) {
 	return os.LookupEnv(l.environmentKey(key))
 }
 
+// func (l *EnvironmentLoader) GetMap(keys []string) map[string]string {
+// 	values := map[string]string{}
+
+// 	return values
+// }
+
 func (l *EnvironmentLoader) HelpString(key string) string {
 	return fmt.Sprintf("Environment key: '%s'", l.environmentKey(key))
 }

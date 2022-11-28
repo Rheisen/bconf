@@ -173,7 +173,7 @@ func (c *AppConfig) GetDurations(key string) ([]time.Duration, error) {
 }
 
 func (c *AppConfig) initialize() []error {
-	if c.config.HandleHelpFlag && len(os.Args) > 1 && os.Args[1] == "--help" {
+	if c.config.HandleHelpFlag && len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
 		c.config.printHelpText()
 		os.Exit(0)
 	}

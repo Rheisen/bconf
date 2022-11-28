@@ -13,6 +13,7 @@ import (
 type Field struct {
 	FieldType        string
 	Required         bool
+	Sensitive        bool
 	Default          any
 	Description      string
 	Enumeration      []any

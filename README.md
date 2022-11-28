@@ -17,13 +17,24 @@ Below is an example of a `bconf.AppConfig`. Below this code block the behavior o
 baseConfig, errs := bconf.NewAppConfig(
     bconf.ConfigDefinition{
         Name: "external_http_api",
-        KeyPrefix: "ext_http_api",
+        Description: "HTTP API for user authentication and authorization"
         HandleHelpFlag: true,
-        Loaders: []string{bconfconst.EnvironmentLoader, bconfconst.FlagLoader},
+        Loaders: []bconf.Loader{
+            &bconf.EnvironmentLoader{KeyPrefix: "ext_http_api"},
+            &bconf.FlagLoader{},
+        },
         ConfigFields: map[string]*bconf.Field{
+            "app_id": bconf.Field{
+                FieldType: bconfconst.String,
+                Description: "Application identifier",
+                DefaultGenerator: func () (any, error) {
+                    return fmt.Sprintf("%s", uuid.NewV4().String()), nil
+                },
+            },
             "session_secret": {
                 FieldType: bconfconst.String,
                 Description: "Application secret for session management",
+                Sensitive: true,
                 Required: true,
                 Validator: func(fieldValue any) error {
                     secret := fieldValue.(string)
@@ -55,18 +66,11 @@ baseConfig, errs := bconf.NewAppConfig(
                 Description: "Application colored logs when format is 'console'",
                 Default: true,
             },
-            "app_id": bconf.Field{
-                FieldType: bconfconst.String,
-                Description: "Application identifier",
-                DefaultGenerator: func () (any, error) {
-                    return fmt.Sprintf("%s", uuid.NewV4().String()), nil
-                },
-            },
         },
     }
 )
 
-if errs != nil && len(errs) > 0 {
+if len(errs) > 0 {
     // handle configuration errors
 }
 
