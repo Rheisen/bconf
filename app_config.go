@@ -12,6 +12,14 @@ type AppConfig struct {
 	config *AppConfigDefinition
 }
 
+func (c *AppConfig) AppName() string {
+	return c.config.Name
+}
+
+func (c *AppConfig) AppDescription() string {
+	return c.config.Description
+}
+
 func (c *AppConfig) GetKeys() []string {
 	keys := make([]string, len(c.config.ConfigFields))
 	idx := 0

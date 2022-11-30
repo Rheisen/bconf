@@ -11,13 +11,23 @@ import (
 )
 
 type Field struct {
-	FieldType        string
-	Required         bool
-	Sensitive        bool
-	Default          any
-	Description      string
-	Enumeration      []any
-	Validator        func(v any) error
+	// // Key is a required field that defines the field lookup value.
+	// Key string
+	// FieldType is a required field that defines the type of value the field contains.
+	FieldType string
+	// Required defines whether a field value must be set in order for the field to be valid.
+	Required bool
+	// Sensitive identifies the field value as sensitive.
+	Sensitive bool
+	// Default defines a base value for a field.
+	Default any
+	// Description defines a summary of the field contents.
+	Description string
+	// Enumeration defines a list of acceptable inputs for the field value.
+	Enumeration []any
+	// Validator defines a function that runs during validation to check a value against validity constraints.
+	Validator func(value any) error
+	// DefaultGenerator defines a function that creates a base value for a field.
 	DefaultGenerator func() (any, error)
 	// -- private attributes --
 	fieldFound       []string
@@ -123,6 +133,30 @@ func (f *Field) Validate() []error {
 						f.Default,
 					),
 				)
+			}
+
+			// Check that the validator passes for default values
+			if f.Default != nil && f.Validator != nil {
+				if err := f.Validator(f.Default); err != nil {
+					errs = append(
+						errs,
+						fmt.Errorf(
+							"invalid default value: error from Validator: %w",
+							err,
+						),
+					)
+				}
+			}
+			if f.generatedDefault != nil && f.Validator != nil {
+				if err := f.Validator(f.generatedDefault); err != nil {
+					errs = append(
+						errs,
+						fmt.Errorf(
+							"invalid generated default value: error from Validator: %w",
+							err,
+						),
+					)
+				}
 			}
 		}
 	}

@@ -68,11 +68,15 @@ func (d *AppConfigDefinition) Validate() []error {
 	}
 
 	if d.ConfigFields != nil {
-		for _, field := range d.ConfigFields {
+		for key, field := range d.ConfigFields {
 			if err := field.GenerateDefault(); err != nil {
-				errs = append(errs, err)
+				errs = append(errs, fmt.Errorf("problem generating default value for field '%s': %w", key, err))
 			}
-			errs = append(errs, field.Validate()...)
+			if errs := field.Validate(); len(errs) > 0 {
+				for _, err := range errs {
+					errs = append(errs, fmt.Errorf("problem validating field '%s': %w", key, err))
+				}
+			}
 		}
 	}
 
@@ -83,9 +87,9 @@ func (d *AppConfigDefinition) HelpText() string {
 	builder := strings.Builder{}
 
 	if d.Name != "" {
-		builder.WriteString(fmt.Sprintf("\nUsage of '%s':\n", d.Name))
+		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", d.Name))
 	} else {
-		builder.WriteString(fmt.Sprintf("\nUsage of '%s':\n", os.Args[0]))
+		builder.WriteString(fmt.Sprintf("Usage of '%s':\n", os.Args[0]))
 	}
 
 	if d.Description != "" {
@@ -138,7 +142,7 @@ func (d *AppConfigDefinition) loadFields() []error {
 			value, found := loader.Get(key)
 			if found {
 				if err := field.set(loader.Name(), value); err != nil {
-					errs = append(errs, fmt.Errorf("invalid field value: %w", err))
+					errs = append(errs, fmt.Errorf("invalid field value for field '%s': %w", key, err))
 				}
 			}
 		}
