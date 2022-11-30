@@ -1,4 +1,4 @@
-package bconf
+package bconfv1
 
 import (
 	"fmt"
@@ -11,8 +11,6 @@ import (
 )
 
 type Field struct {
-	// Key is a required field that defines the field lookup value.
-	Key string
 	// FieldType is a required field that defines the type of value the field contains.
 	FieldType string
 	// Required defines whether a field value must be set in order for the field to be valid.

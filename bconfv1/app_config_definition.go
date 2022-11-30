@@ -1,4 +1,4 @@
-package bconf
+package bconfv1
 
 import (
 	"fmt"
