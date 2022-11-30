@@ -4,12 +4,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/rheisen/bconf"
 	"github.com/rheisen/bconf/bconfconst"
+	"github.com/rheisen/bconf/bconfv1"
 )
 
 func TestNewAppConfig(t *testing.T) {
-	fields := map[string]*bconf.Field{
+	fields := map[string]*bconfv1.Field{
 		"app_id": {
 			FieldType: bconfconst.String,
 			DefaultGenerator: func() (any, error) {
@@ -17,17 +17,17 @@ func TestNewAppConfig(t *testing.T) {
 			},
 		},
 	}
-	def := bconf.AppConfigDefinition{
+	def := bconfv1.AppConfigDefinition{
 		Name:         "app_config_test",
 		ConfigFields: fields,
-		Loaders:      []bconf.Loader{&bconf.EnvironmentLoader{KeyPrefix: "bconf"}},
+		Loaders:      []bconfv1.Loader{&bconfv1.EnvironmentLoader{KeyPrefix: "bconf"}},
 	}
 
 	// Phony environment
 
 	os.Setenv("BCONF_APP_ID", "-")
 
-	appConfig, errs := bconf.NewAppConfig(&def)
+	appConfig, errs := bconfv1.NewAppConfig(&def)
 	if len(errs) > 0 {
 		t.Fatalf("unexpected errors: %s", errs[0])
 	}

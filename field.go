@@ -33,9 +33,10 @@ type Field struct {
 	fieldFound       []string
 	fieldValue       map[string]any
 	generatedDefault any
+	overrideValue    any
 }
 
-func (f *Field) GenerateDefault() error {
+func (f *Field) generateDefault() error {
 	if f.DefaultGenerator == nil {
 		return nil
 	}
@@ -50,8 +51,20 @@ func (f *Field) GenerateDefault() error {
 	return nil
 }
 
-func (f *Field) Validate() []error {
+func (f *Field) validate() []error {
 	errs := []error{}
+
+	if f.Key == "" {
+		errs = append(errs, fmt.Errorf("invalid key value: cannot be blank"))
+	}
+
+	if f.FieldType == "" {
+		errs = append(errs, fmt.Errorf("invalid field-type value: cannot be blank"))
+	}
+
+	if len(errs) > 0 {
+		return errs
+	}
 
 	fieldTypeFound := false
 	for _, fieldType := range bconfconst.FieldTypes() {
@@ -168,7 +181,7 @@ func (f *Field) Validate() []error {
 	return errs
 }
 
-func (f *Field) GetValue() (any, error) {
+func (f *Field) getValue() (any, error) {
 	if f.fieldFound != nil {
 		value, found := f.fieldValue[f.fieldFound[len(f.fieldFound)-1]]
 		if !found {
@@ -187,7 +200,7 @@ func (f *Field) GetValue() (any, error) {
 	return nil, fmt.Errorf("empty field value")
 }
 
-func (f *Field) GetValueFrom(loader string) (any, error) {
+func (f *Field) getValueFrom(loader string) (any, error) {
 	if f.fieldValue == nil {
 		return nil, fmt.Errorf("")
 	}

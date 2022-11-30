@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rheisen/bconf"
 	"github.com/rheisen/bconf/bconfconst"
+	"github.com/rheisen/bconf/bconfv1"
 )
 
 func TestFieldTypes(t *testing.T) {
@@ -44,7 +44,7 @@ func TestFieldTypes(t *testing.T) {
 
 	for name, testCase := range testCases {
 		for _, expectedValidDefault := range testCase.ValidDefaults {
-			field := bconf.Field{
+			field := bconfv1.Field{
 				FieldType: testCase.FieldType,
 				Default:   expectedValidDefault,
 			}
@@ -61,7 +61,7 @@ func TestFieldTypes(t *testing.T) {
 		}
 
 		for _, expectedInvalidDefault := range testCase.InvalidDefaults {
-			field := bconf.Field{
+			field := bconfv1.Field{
 				FieldType: testCase.FieldType,
 				Default:   expectedInvalidDefault,
 			}
@@ -74,7 +74,7 @@ func TestFieldTypes(t *testing.T) {
 }
 
 func TestStringField(t *testing.T) {
-	validField := bconf.Field{
+	validField := bconfv1.Field{
 		FieldType:   bconfconst.String,
 		Default:     "value",
 		Description: "basic field",
@@ -86,7 +86,7 @@ func TestStringField(t *testing.T) {
 		t.Errorf("unexpected errors validating validField: %v", errs)
 	}
 
-	invalidFieldInvalidDefaultType := bconf.Field{
+	invalidFieldInvalidDefaultType := bconfv1.Field{
 		FieldType:   bconfconst.String,
 		Default:     2,
 		Description: "basic field",
@@ -104,7 +104,7 @@ func TestStringField(t *testing.T) {
 		t.Errorf("expected 1 err for invalidFieldInvalidDefaultType, found %d (%v)", len(errs), errs)
 	}
 
-	invalidFieldInvalidEnumerationList := bconf.Field{
+	invalidFieldInvalidEnumerationList := bconfv1.Field{
 		FieldType:   bconfconst.String,
 		Required:    false,
 		Default:     "value",
@@ -131,7 +131,7 @@ func TestStringField(t *testing.T) {
 }
 
 func TestFieldDefaultGenerator(t *testing.T) {
-	validField := bconf.Field{
+	validField := bconfv1.Field{
 		FieldType: bconfconst.String,
 		DefaultGenerator: func() (any, error) {
 			return "generated-default", nil
