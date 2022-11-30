@@ -1,4 +1,4 @@
-package bconf_test
+package bconfv1_test
 
 import (
 	"os"
