@@ -6,25 +6,30 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/rheisen/bconf/bconfconst"
 )
 
 func NewAppConfig(appName string, appDescription string) *AppConfig {
 	return &AppConfig{
-		appName:        appName,
-		appDescription: appDescription,
-		fieldSets:      map[string]*FieldSet{},
-		loaders:        []Loader{},
+		appName:          appName,
+		appDescription:   appDescription,
+		fieldSets:        map[string]*FieldSet{},
+		orderedFieldSets: []*FieldSet{},
+		loaders:          []Loader{},
 	}
 }
 
 type AppConfig struct {
-	appName        string
-	appDescription string
-	fieldSets      map[string]*FieldSet
-	fieldSetLock   sync.Mutex
-	loaders        []Loader
-	register       sync.Once
-	registered     bool
+	appName          string
+	appDescription   string
+	fieldSets        map[string]*FieldSet
+	orderedFieldSets []*FieldSet
+	fieldSetLock     sync.Mutex
+	loaders          []Loader
+	register         sync.Once
+	registered       bool
 }
 
 func (c *AppConfig) AppName() string {
@@ -74,6 +79,32 @@ func (c *AppConfig) AddFieldSet(fieldSet *FieldSet) []error {
 		return errs
 	}
 
+	// check that field set load conditions are all present
+	for _, loadCondition := range fieldSet.LoadConditions {
+		fieldSetKey, fieldKey := loadCondition.FieldDependency()
+		if fieldSetKey == "" && fieldKey == "" {
+			continue
+		}
+		fieldSetDependency, found := c.fieldSets[fieldSetKey]
+		if !found {
+			errs = append(
+				errs,
+				fmt.Errorf("field-set '%s' field-set dependency not found: %s", fieldSet.Key, fieldSetKey),
+			)
+			continue
+		}
+		_, found = fieldSetDependency.fieldMap[fieldKey]
+		if !found {
+			errs = append(
+				errs,
+				fmt.Errorf(
+					"field-set '%s' field-set dependency field not found: %s_%s",
+					fieldSet.Key, fieldSetKey, fieldKey,
+				),
+			)
+		}
+	}
+
 	fieldSet.initializeFieldMap()
 
 	// generate field-set field default values
@@ -118,7 +149,13 @@ func (c *AppConfig) AddFieldSet(fieldSet *FieldSet) []error {
 }
 
 func (c *AppConfig) AddField(fieldSetKey string, field *Field) []error {
-	return nil
+	c.fieldSetLock.Lock()
+	defer c.fieldSetLock.Unlock()
+
+	errs := []error{}
+	errs = append(errs, fmt.Errorf("AddField not implemented"))
+
+	return errs
 }
 
 func (c *AppConfig) LoadFieldSet(fieldSetKey string) []error {
@@ -126,10 +163,38 @@ func (c *AppConfig) LoadFieldSet(fieldSetKey string) []error {
 
 	if !c.registered {
 		errs = append(errs, fmt.Errorf("LoadFieldSet cannot be called before the app-config has been registered"))
+		return errs
 	}
 
-	if _, fieldSetFound := c.fieldSets[fieldSetKey]; !fieldSetFound {
+	fieldSet, fieldSetFound := c.fieldSets[fieldSetKey]
+	if !fieldSetFound {
 		errs = append(errs, fmt.Errorf("field-set with key '%s' not found", fieldSetKey))
+		return errs
+	}
+
+	// Check field set load conditions
+	loadFieldSet := true
+	for _, loadCondition := range fieldSet.LoadConditions {
+		if !loadFieldSet {
+			break
+		}
+
+		conditionFieldSetKey, conditionFieldSetFieldKey := loadCondition.FieldDependency()
+
+		if conditionFieldSetKey != "" && conditionFieldSetFieldKey != "" {
+			fieldValue, err := c.getFieldValue(conditionFieldSetKey, conditionFieldSetFieldKey, "any")
+			if err != nil {
+				errs = append(errs, fmt.Errorf("problem getting field value for load condition: %w", err))
+				return errs
+			}
+			loadFieldSet = loadCondition.Load(fieldValue)
+			continue
+		}
+
+		loadFieldSet = loadCondition.Load(nil)
+		continue
+	}
+	if !loadFieldSet {
 		return errs
 	}
 
@@ -152,6 +217,7 @@ func (c *AppConfig) LoadField(fieldSetKey, fieldKey string) []error {
 
 	if !c.registered {
 		errs = append(errs, fmt.Errorf("LoadField cannot be called before the app-config has been registered"))
+		return errs
 	}
 
 	if _, fieldSetFound := c.fieldSets[fieldSetKey]; !fieldSetFound {
@@ -159,15 +225,40 @@ func (c *AppConfig) LoadField(fieldSetKey, fieldKey string) []error {
 		return errs
 	}
 
-	if _, fieldKeyFound := c.fieldSets[fieldSetKey].fieldMap[fieldKey]; !fieldKeyFound {
+	field, fieldKeyFound := c.fieldSets[fieldSetKey].fieldMap[fieldKey]
+	if !fieldKeyFound {
 		errs = append(errs, fmt.Errorf("field with key '%s' not found", fieldKey))
 		return errs
+	}
+
+	for _, loader := range c.loaders {
+		value, found := loader.Get(fmt.Sprintf("%s_%s", fieldSetKey, fieldKey))
+		if !found {
+			continue
+		}
+		if err := field.set(loader.Name(), value); err != nil {
+			errs = append(errs, fmt.Errorf("field '%s' load error: %w", fieldKey, err))
+		}
 	}
 
 	return nil
 }
 
-func (c *AppConfig) SetField(fieldSetKey, fieldKey string, fieldValue any) []error {
+func (c *AppConfig) SetField(fieldSetKey, fieldKey string, fieldValue any) error {
+	fieldSet, fieldSetFound := c.fieldSets[fieldSetKey]
+	if !fieldSetFound {
+		return fmt.Errorf("field-set with key '%s' not found", fieldSetKey)
+	}
+
+	field, fieldKeyFound := fieldSet.fieldMap[fieldKey]
+	if !fieldKeyFound {
+		return fmt.Errorf("field with key '%s' not found", fieldKey)
+	}
+
+	if err := field.setOverride(fieldValue); err != nil {
+		return fmt.Errorf("problem setting field value: %w", err)
+	}
+
 	return nil
 }
 
@@ -180,13 +271,16 @@ func (c *AppConfig) Register(handleHelpFlag bool) []error {
 
 	errs := []error{}
 
-	for fieldSetKey := range c.fieldSets {
-		if fieldSetErrs := c.LoadFieldSet(fieldSetKey); len(fieldSetErrs) > 0 {
+	for _, fieldSet := range c.orderedFieldSets {
+		if fieldSetErrs := c.LoadFieldSet(fieldSet.Key); len(fieldSetErrs) > 0 {
 			errs = append(errs, fieldSetErrs...)
+			return errs
 		}
 	}
 
-	return errs
+	c.registered = true
+
+	return nil
 }
 
 func (c *AppConfig) HelpString() string {
@@ -241,6 +335,207 @@ func (c *AppConfig) HelpString() string {
 	return builder.String()
 }
 
+func (c *AppConfig) GetFieldSetKeys() []string {
+	keys := make([]string, len(c.fieldSets))
+	idx := 0
+	for key := range c.fieldSets {
+		keys[idx] = key
+		idx += 1
+	}
+
+	return keys
+}
+
+func (c *AppConfig) GetFieldSetFieldKeys(fieldSetKey string) ([]string, error) {
+	fieldSet, found := c.fieldSets[fieldSetKey]
+	if !found {
+		return nil, fmt.Errorf("field-set not found with key: '%s'", fieldSetKey)
+	}
+
+	keys := make([]string, len(fieldSet.fieldMap))
+	idx := 0
+	for key := range c.fieldSets {
+		keys[idx] = key
+		idx += 1
+	}
+
+	return keys, nil
+}
+
+func (c *AppConfig) GetField(fieldSetKey, fieldKey string) (*Field, error) {
+	fieldSet, found := c.fieldSets[fieldSetKey]
+	if !found {
+		return nil, fmt.Errorf("field-set not found with key '%s'", fieldSetKey)
+	}
+
+	field, found := fieldSet.fieldMap[fieldKey]
+	if !found {
+		return nil, fmt.Errorf("field-set field not found with key '%s'", fieldKey)
+	}
+
+	return field, nil
+}
+
+func (c *AppConfig) GetString(fieldSetKey, fieldKey string) (string, error) {
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.String)
+	if err != nil {
+		return "", err
+	}
+
+	val, ok := fieldValue.(string)
+	if !ok {
+		return "", fmt.Errorf("problem parsing value for key '%s'", fieldSetKey)
+	}
+
+	return val, nil
+}
+
+func (c *AppConfig) GetStrings(fieldSetKey, fieldKey string) ([]string, error) {
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Strings)
+	if err != nil {
+		return nil, err
+	}
+
+	val, ok := fieldValue.([]string)
+	if !ok {
+		return nil, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
+	}
+
+	return val, nil
+}
+
+func (c *AppConfig) GetInt(fieldSetKey, fieldKey string) (int, error) {
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Int)
+	if err != nil {
+		return 0, err
+	}
+
+	val, ok := fieldValue.(int)
+	if !ok {
+		return 0, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
+	}
+
+	return val, nil
+}
+
+func (c *AppConfig) GetInts(fieldSetKey, fieldKey string) ([]int, error) {
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Ints)
+	if err != nil {
+		return nil, err
+	}
+
+	val, ok := fieldValue.([]int)
+	if !ok {
+		return nil, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
+	}
+
+	return val, nil
+}
+
+func (c *AppConfig) GetBool(fieldSetKey, fieldKey string) (bool, error) {
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Bool)
+	if err != nil {
+		return false, err
+	}
+
+	val, ok := fieldValue.(bool)
+	if !ok {
+		return false, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
+	}
+
+	return val, nil
+}
+
+func (c *AppConfig) GetBools(fieldSetKey, fieldKey string) ([]bool, error) {
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Bools)
+	if err != nil {
+		return nil, err
+	}
+
+	val, ok := fieldValue.([]bool)
+	if !ok {
+		return nil, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
+	}
+
+	return val, nil
+}
+
+func (c *AppConfig) GetTime(fieldSetKey, fieldKey string) (time.Time, error) {
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Bool)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	val, ok := fieldValue.(time.Time)
+	if !ok {
+		return time.Time{}, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
+	}
+
+	return val, nil
+}
+
+func (c *AppConfig) GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error) {
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Times)
+	if err != nil {
+		return nil, err
+	}
+
+	val, ok := fieldValue.([]time.Time)
+	if !ok {
+		return nil, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
+	}
+
+	return val, nil
+}
+
+func (c *AppConfig) GetDuration(fieldSetKey, fieldKey string) (time.Duration, error) {
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Bool)
+	if err != nil {
+		return 0, err
+	}
+
+	val, ok := fieldValue.(time.Duration)
+	if !ok {
+		return 0, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
+	}
+
+	return val, nil
+}
+
+func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration, error) {
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Durations)
+	if err != nil {
+		return nil, err
+	}
+
+	val, ok := fieldValue.([]time.Duration)
+	if !ok {
+		return nil, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
+	}
+
+	return val, nil
+}
+
+// -- Private methods --
+
+func (c *AppConfig) getFieldValue(fieldSetKey, fieldKey string, expectedType string) (any, error) {
+	field, err := c.GetField(fieldSetKey, fieldKey)
+	if err != nil {
+		return nil, err
+	}
+
+	if expectedType != "" && expectedType != "any" && field.FieldType != expectedType {
+		return nil, fmt.Errorf("incorrect field-type for field '%s', found '%s'", fieldKey, field.FieldType)
+	}
+
+	fieldValue, err := field.getValue()
+	if err != nil {
+		return nil, fmt.Errorf("no value set for field '%s'", fieldKey)
+	}
+
+	return fieldValue, nil
+}
+
 func (c *AppConfig) fields() map[string]*Field {
 	fields := map[string]*Field{}
 
@@ -293,4 +588,57 @@ func (c *AppConfig) fieldHelpString(fields map[string]*Field, key string) string
 
 func (c *AppConfig) printHelpString() {
 	fmt.Printf("%s", c.HelpString())
+}
+
+func (c *AppConfig) fieldSetLoadOrder() ([]*FieldSet, error) {
+	fieldSets := make([]*FieldSet, len(c.fieldSets))
+	fieldSetAvailable := map[string]struct{}{}
+
+	var iter func(fieldSet *FieldSet, seen map[string]struct{}) error
+	iter = func(fieldSet *FieldSet, seen map[string]struct{}) error {
+		if _, seen := seen[fieldSet.Key]; seen {
+			return fmt.Errorf("field-set cycle detected")
+		}
+
+		if _, available := fieldSetAvailable[fieldSet.Key]; available {
+			return nil
+		}
+
+		if len(fieldSet.LoadConditions) == 0 {
+			fieldSets = append(fieldSets, fieldSet)
+			fieldSetAvailable[fieldSet.Key] = struct{}{}
+			return nil
+		}
+
+		for _, condition := range fieldSet.LoadConditions {
+			fieldSetKey, _ := condition.FieldDependency()
+			if fieldSetKey != "" {
+				if _, fieldSetExists := c.fieldSets[fieldSetKey]; !fieldSetExists {
+					return fmt.Errorf("field-set dependency on non-existent field-set: '%s'", fieldSetKey)
+				}
+				_, fieldSetAvailable := fieldSetAvailable[fieldSetKey]
+				if !fieldSetAvailable {
+					seen[fieldSet.Key] = struct{}{}
+					if err := iter(c.fieldSets[fieldSetKey], seen); err != nil {
+						return err
+					}
+
+					continue
+				}
+			}
+		}
+
+		fieldSets = append(fieldSets, fieldSet)
+		fieldSetAvailable[fieldSet.Key] = struct{}{}
+
+		return nil
+	}
+
+	for _, fieldSet := range c.fieldSets {
+		if err := iter(fieldSet, map[string]struct{}{}); err != nil {
+			return fieldSets, err
+		}
+	}
+
+	return fieldSets, nil
 }

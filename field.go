@@ -182,6 +182,10 @@ func (f *Field) validate() []error {
 }
 
 func (f *Field) getValue() (any, error) {
+	if f.overrideValue != nil {
+		return f.overrideValue, nil
+	}
+
 	if f.fieldFound != nil {
 		value, found := f.fieldValue[f.fieldFound[len(f.fieldFound)-1]]
 		if !found {
@@ -216,17 +220,23 @@ func (f *Field) getValueFrom(loader string) (any, error) {
 func (f *Field) set(loaderName string, value string) error {
 	parsedValue, err := f.parseString(value)
 	if err != nil {
-		return fmt.Errorf("problem parsing field value to field type: %w", err)
+		return fmt.Errorf("problem parsing value to field-type: %w", err)
 	}
 
 	if !f.valueInEnumeration(parsedValue) {
-		return fmt.Errorf("parsed value not found in enumeration list")
+		return fmt.Errorf("value not found in enumeration list")
 	}
 
 	if f.Validator != nil {
 		if err := f.Validator(parsedValue); err != nil {
-			return fmt.Errorf("validation error: %w", err)
+			return fmt.Errorf("value validation error: %w", err)
 		}
+	}
+
+	if f.fieldValue == nil {
+		f.fieldValue = map[string]any{loaderName: parsedValue}
+	} else {
+		f.fieldValue[loaderName] = value
 	}
 
 	if f.fieldFound == nil {
@@ -235,11 +245,29 @@ func (f *Field) set(loaderName string, value string) error {
 		f.fieldFound = append(f.fieldFound, loaderName)
 	}
 
-	if f.fieldValue == nil {
-		f.fieldValue = map[string]any{loaderName: parsedValue}
-	} else {
-		f.fieldValue[loaderName] = value
+	return nil
+}
+
+func (f *Field) setOverride(value any) error {
+	if reflect.TypeOf(value).String() != f.FieldType {
+		return fmt.Errorf(
+			"invalid value field-type: expected '%s', found '%s'",
+			f.FieldType,
+			reflect.TypeOf(value).String(),
+		)
 	}
+
+	if !f.valueInEnumeration(value) {
+		return fmt.Errorf("value not found in enumeration list")
+	}
+
+	if f.Validator != nil {
+		if err := f.Validator(value); err != nil {
+			return fmt.Errorf("value validation error: %w", err)
+		}
+	}
+
+	f.overrideValue = value
 
 	return nil
 }

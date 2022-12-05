@@ -1,6 +1,7 @@
 package bconf_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/rheisen/bconf"
@@ -44,4 +45,28 @@ func TestAppConfig(t *testing.T) {
 	}
 
 	t.Log(appConfig.HelpString())
+
+	if errs := appConfig.Register(false); len(errs) > 0 {
+		t.Fatalf("unexpected error registering application configuration: %v", errs)
+	}
+
+	appID, err := appConfig.GetString("app", "id")
+	if err != nil {
+		t.Fatalf("unexpected error getting app_id field: %s", err)
+	}
+	if appID != "generated-default" {
+		t.Fatalf("unexected app_id value, found: '%s'", appID)
+	}
+
+	os.Setenv("BCONF_TEST_APP_ID", "environment-loaded-app-id")
+
+	appConfig.LoadField("app", "id")
+
+	appID, err = appConfig.GetString("app", "id")
+	if err != nil {
+		t.Fatalf("unexpected error getting app_id field: %s", err)
+	}
+	if appID != "environment-loaded-app-id" {
+		t.Fatalf("unexected app_id value, found: '%s'", appID)
+	}
 }
