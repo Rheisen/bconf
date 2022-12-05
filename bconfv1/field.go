@@ -1,4 +1,4 @@
-package bconf
+package bconfv1
 
 import (
 	"fmt"
@@ -11,8 +11,6 @@ import (
 )
 
 type Field struct {
-	// Key is a required field that defines the field lookup value.
-	Key string
 	// FieldType is a required field that defines the type of value the field contains.
 	FieldType string
 	// Required defines whether a field value must be set in order for the field to be valid.
@@ -33,10 +31,9 @@ type Field struct {
 	fieldFound       []string
 	fieldValue       map[string]any
 	generatedDefault any
-	overrideValue    any
 }
 
-func (f *Field) generateDefault() error {
+func (f *Field) GenerateDefault() error {
 	if f.DefaultGenerator == nil {
 		return nil
 	}
@@ -51,20 +48,8 @@ func (f *Field) generateDefault() error {
 	return nil
 }
 
-func (f *Field) validate() []error {
+func (f *Field) Validate() []error {
 	errs := []error{}
-
-	if f.Key == "" {
-		errs = append(errs, fmt.Errorf("invalid key value: cannot be blank"))
-	}
-
-	if f.FieldType == "" {
-		errs = append(errs, fmt.Errorf("invalid field-type value: cannot be blank"))
-	}
-
-	if len(errs) > 0 {
-		return errs
-	}
 
 	fieldTypeFound := false
 	for _, fieldType := range bconfconst.FieldTypes() {
@@ -181,11 +166,7 @@ func (f *Field) validate() []error {
 	return errs
 }
 
-func (f *Field) getValue() (any, error) {
-	if f.overrideValue != nil {
-		return f.overrideValue, nil
-	}
-
+func (f *Field) GetValue() (any, error) {
 	if f.fieldFound != nil {
 		value, found := f.fieldValue[f.fieldFound[len(f.fieldFound)-1]]
 		if !found {
@@ -204,7 +185,7 @@ func (f *Field) getValue() (any, error) {
 	return nil, fmt.Errorf("empty field value")
 }
 
-func (f *Field) getValueFrom(loader string) (any, error) {
+func (f *Field) GetValueFrom(loader string) (any, error) {
 	if f.fieldValue == nil {
 		return nil, fmt.Errorf("")
 	}
@@ -220,23 +201,17 @@ func (f *Field) getValueFrom(loader string) (any, error) {
 func (f *Field) set(loaderName string, value string) error {
 	parsedValue, err := f.parseString(value)
 	if err != nil {
-		return fmt.Errorf("problem parsing value to field-type: %w", err)
+		return fmt.Errorf("problem parsing field value to field type: %w", err)
 	}
 
 	if !f.valueInEnumeration(parsedValue) {
-		return fmt.Errorf("value not found in enumeration list")
+		return fmt.Errorf("parsed value not found in enumeration list")
 	}
 
 	if f.Validator != nil {
 		if err := f.Validator(parsedValue); err != nil {
-			return fmt.Errorf("value validation error: %w", err)
+			return fmt.Errorf("validation error: %w", err)
 		}
-	}
-
-	if f.fieldValue == nil {
-		f.fieldValue = map[string]any{loaderName: parsedValue}
-	} else {
-		f.fieldValue[loaderName] = value
 	}
 
 	if f.fieldFound == nil {
@@ -245,29 +220,11 @@ func (f *Field) set(loaderName string, value string) error {
 		f.fieldFound = append(f.fieldFound, loaderName)
 	}
 
-	return nil
-}
-
-func (f *Field) setOverride(value any) error {
-	if reflect.TypeOf(value).String() != f.FieldType {
-		return fmt.Errorf(
-			"invalid value field-type: expected '%s', found '%s'",
-			f.FieldType,
-			reflect.TypeOf(value).String(),
-		)
+	if f.fieldValue == nil {
+		f.fieldValue = map[string]any{loaderName: parsedValue}
+	} else {
+		f.fieldValue[loaderName] = value
 	}
-
-	if !f.valueInEnumeration(value) {
-		return fmt.Errorf("value not found in enumeration list")
-	}
-
-	if f.Validator != nil {
-		if err := f.Validator(value); err != nil {
-			return fmt.Errorf("value validation error: %w", err)
-		}
-	}
-
-	f.overrideValue = value
 
 	return nil
 }

@@ -1,4 +1,4 @@
-package bconf
+package bconfv1
 
 // NewAppConfig instantiates and initializes an app configuration as defined by the given bconf.AppConfigDefinition.
 func NewAppConfig(d *AppConfigDefinition) (*AppConfig, []error) {

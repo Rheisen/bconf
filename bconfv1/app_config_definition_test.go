@@ -1,18 +1,17 @@
-package bconf_test
+package bconfv1_test
 
 import (
 	"testing"
 
-	"github.com/rheisen/bconf"
 	"github.com/rheisen/bconf/bconfconst"
+	"github.com/rheisen/bconf/bconfv1"
 )
 
 func TestHelpText(t *testing.T) {
 	def := baseAppConfigDefinition()
 
 	helpText := def.HelpText()
-	expectedHelpText := `
-Usage of 'bconf_example_app':
+	expectedHelpText := `Usage of 'bconf_example_app':
 Example-App is an HTTP Application for accessing weather data
 
 Required Configuration:
@@ -79,7 +78,7 @@ func TestClone(t *testing.T) {
 }
 
 func TestAppConfigDefinition(t *testing.T) {
-	fields := map[string]*bconf.Field{
+	fields := map[string]*bconfv1.Field{
 		"app_id": {
 			FieldType: bconfconst.String,
 			DefaultGenerator: func() (any, error) {
@@ -87,10 +86,10 @@ func TestAppConfigDefinition(t *testing.T) {
 			},
 		},
 	}
-	def := bconf.AppConfigDefinition{
+	def := bconfv1.AppConfigDefinition{
 		Name:         "app_config_test",
 		ConfigFields: fields,
-		Loaders:      []bconf.Loader{&bconf.EnvironmentLoader{KeyPrefix: "bconf"}},
+		Loaders:      []bconfv1.Loader{&bconfv1.EnvironmentLoader{KeyPrefix: "bconf"}},
 	}
 
 	if errs := def.GenerateFieldDefaults(); len(errs) > 0 {
@@ -102,8 +101,8 @@ func TestAppConfigDefinition(t *testing.T) {
 	}
 }
 
-func baseAppConfigDefinition() bconf.AppConfigDefinition {
-	fields := map[string]*bconf.Field{
+func baseAppConfigDefinition() bconfv1.AppConfigDefinition {
+	fields := map[string]*bconfv1.Field{
 		"app_id": {
 			FieldType:   bconfconst.String,
 			Description: "Application identifier for use in application log messages and tracing",
@@ -128,11 +127,11 @@ func baseAppConfigDefinition() bconf.AppConfigDefinition {
 			Default:     true,
 		},
 	}
-	def := bconf.AppConfigDefinition{
+	def := bconfv1.AppConfigDefinition{
 		Name:         "bconf_example_app",
 		Description:  "Example-App is an HTTP Application for accessing weather data",
 		ConfigFields: fields,
-		Loaders:      []bconf.Loader{&bconf.EnvironmentLoader{KeyPrefix: "bconf"}},
+		Loaders:      []bconfv1.Loader{&bconfv1.EnvironmentLoader{KeyPrefix: "bconf"}},
 	}
 
 	return def

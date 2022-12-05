@@ -8,54 +8,65 @@ import (
 	"github.com/rheisen/bconf/bconfconst"
 )
 
-func TestNewAppConfig(t *testing.T) {
-	fields := map[string]*bconf.Field{
-		"app_id": {
-			FieldType: bconfconst.String,
-			DefaultGenerator: func() (any, error) {
-				return "generated-default", nil
+func TestAppConfig(t *testing.T) {
+	appConfig := bconf.NewAppConfig(
+		"bconf_test_app",
+		"Test-App is an HTTP server providing access to weather data",
+	)
+
+	configLoaders := []bconf.Loader{
+		&bconf.EnvironmentLoader{KeyPrefix: "bconf_test"},
+	}
+
+	if errs := appConfig.SetLoaders(configLoaders...); len(errs) > 0 {
+		t.Fatalf("unexpected errors setting loaders: %v", errs)
+	}
+
+	appFieldSet := &bconf.FieldSet{
+		Key: "app",
+		Fields: []*bconf.Field{
+			{
+				Key:         "id",
+				FieldType:   bconfconst.String,
+				Description: "Application identifier for use in application log messages and tracing",
+				DefaultGenerator: func() (any, error) {
+					return "generated-default", nil
+				},
 			},
 		},
 	}
-	def := bconf.AppConfigDefinition{
-		Name:         "app_config_test",
-		ConfigFields: fields,
-		Loaders:      []bconf.Loader{&bconf.EnvironmentLoader{KeyPrefix: "bconf"}},
+
+	if errs := appConfig.AddFieldSet(appFieldSet); len(errs) > 0 {
+		t.Fatalf("unexpected errors adding field set: %v", errs)
 	}
 
-	// Phony environment
-
-	os.Setenv("BCONF_APP_ID", "-")
-
-	appConfig, errs := bconf.NewAppConfig(&def)
-	if len(errs) > 0 {
-		t.Fatalf("unexpected errors: %s", errs[0])
+	if errs := appConfig.AddFieldSet(appFieldSet); len(errs) < 1 {
+		t.Fatalf("errors expected when adding field set with duplicate key: %s", appFieldSet.Key)
 	}
 
-	appIDField, err := appConfig.GetField("app_id")
+	t.Log(appConfig.HelpString())
+
+	if errs := appConfig.Register(false); len(errs) > 0 {
+		t.Fatalf("unexpected error registering application configuration: %v", errs)
+	}
+
+	appID, err := appConfig.GetString("app", "id")
 	if err != nil {
-		t.Fatalf("unexpected error getting appID: %s", err)
+		t.Fatalf("unexpected error getting app_id field: %s", err)
+	}
+	if appID != "generated-default" {
+		t.Fatalf("unexected app_id value, found: '%s'", appID)
 	}
 
-	appIDFieldValue, err := appIDField.GetValue()
+	os.Setenv("BCONF_TEST_APP_ID", "environment-loaded-app-id")
+
+	appConfig.LoadField("app", "id")
+
+	appID, err = appConfig.GetString("app", "id")
 	if err != nil {
-		t.Fatalf("unexpected error getting appIDField value: %s", err)
+		t.Fatalf("unexpected error getting app_id field: %s", err)
 	}
-
-	t.Log(appIDFieldValue)
-
-	lookupValue, err := appConfig.GetString("app_id")
-	if err != nil {
-		t.Fatalf("unexpected error getting appConfig string value: %s", err)
+	if appID != "environment-loaded-app-id" {
+		t.Fatalf("unexected app_id value, found: '%s'", appID)
 	}
-
-	if lookupValue != "-" {
-		t.Fatalf("unexpected app_id value, expected '%s', found '%s'", "-", lookupValue)
-	}
-
-	t.Log(lookupValue)
-
-	// if appID != "generate-uuid-here" {
-	// 	t.Fatalf("unexpected value for appID: %s", appID)
-	// }
 }
