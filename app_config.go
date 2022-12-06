@@ -132,6 +132,7 @@ func (c *AppConfig) AddFieldSet(fieldSet *FieldSet) []error {
 	// persist the field-set to AppConfig
 	if c.fieldSets == nil {
 		c.fieldSets = map[string]*FieldSet{fieldSet.Key: fieldSet}
+		c.orderedFieldSets = append(c.orderedFieldSets, fieldSet)
 		return nil
 	}
 
@@ -144,6 +145,7 @@ func (c *AppConfig) AddFieldSet(fieldSet *FieldSet) []error {
 	}
 
 	c.fieldSets[fieldSet.Key] = fieldSet
+	c.orderedFieldSets = append(c.orderedFieldSets, fieldSet)
 
 	return nil
 }
@@ -166,50 +168,7 @@ func (c *AppConfig) LoadFieldSet(fieldSetKey string) []error {
 		return errs
 	}
 
-	fieldSet, fieldSetFound := c.fieldSets[fieldSetKey]
-	if !fieldSetFound {
-		errs = append(errs, fmt.Errorf("field-set with key '%s' not found", fieldSetKey))
-		return errs
-	}
-
-	// Check field set load conditions
-	loadFieldSet := true
-	for _, loadCondition := range fieldSet.LoadConditions {
-		if !loadFieldSet {
-			break
-		}
-
-		conditionFieldSetKey, conditionFieldSetFieldKey := loadCondition.FieldDependency()
-
-		if conditionFieldSetKey != "" && conditionFieldSetFieldKey != "" {
-			fieldValue, err := c.getFieldValue(conditionFieldSetKey, conditionFieldSetFieldKey, "any")
-			if err != nil {
-				errs = append(errs, fmt.Errorf("problem getting field value for load condition: %w", err))
-				return errs
-			}
-			loadFieldSet = loadCondition.Load(fieldValue)
-			continue
-		}
-
-		loadFieldSet = loadCondition.Load(nil)
-		continue
-	}
-	if !loadFieldSet {
-		return errs
-	}
-
-	for _, loader := range c.loaders {
-		for key, field := range c.fieldSets[fieldSetKey].fieldMap {
-			value, found := loader.Get(fmt.Sprintf("%s_%s", fieldSetKey, key))
-			if found {
-				if err := field.set(loader.Name(), value); err != nil {
-					errs = append(errs, fmt.Errorf("field '%s' load error: %w", key, err))
-				}
-			}
-		}
-	}
-
-	return errs
+	return c.loadFieldSet(fieldSetKey)
 }
 
 func (c *AppConfig) LoadField(fieldSetKey, fieldKey string) []error {
@@ -272,7 +231,7 @@ func (c *AppConfig) Register(handleHelpFlag bool) []error {
 	errs := []error{}
 
 	for _, fieldSet := range c.orderedFieldSets {
-		if fieldSetErrs := c.LoadFieldSet(fieldSet.Key); len(fieldSetErrs) > 0 {
+		if fieldSetErrs := c.loadFieldSet(fieldSet.Key); len(fieldSetErrs) > 0 {
 			errs = append(errs, fieldSetErrs...)
 			return errs
 		}
@@ -517,6 +476,57 @@ func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration,
 }
 
 // -- Private methods --
+
+func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
+	errs := []error{}
+
+	fieldSet, fieldSetFound := c.fieldSets[fieldSetKey]
+	if !fieldSetFound {
+		errs = append(errs, fmt.Errorf("field-set with key '%s' not found", fieldSetKey))
+		return errs
+	}
+
+	// Check field set load conditions
+	loadFieldSet := true
+	if len(fieldSet.LoadConditions) > 0 {
+		for _, loadCondition := range fieldSet.LoadConditions {
+			if !loadFieldSet {
+				break
+			}
+
+			conditionFieldSetKey, conditionFieldSetFieldKey := loadCondition.FieldDependency()
+
+			if conditionFieldSetKey != "" && conditionFieldSetFieldKey != "" {
+				fieldValue, err := c.getFieldValue(conditionFieldSetKey, conditionFieldSetFieldKey, "any")
+				if err != nil {
+					errs = append(errs, fmt.Errorf("problem getting field value for load condition: %w", err))
+					return errs
+				}
+				loadFieldSet = loadCondition.Load(fieldValue)
+				continue
+			}
+
+			loadFieldSet = loadCondition.Load(nil)
+			continue
+		}
+	}
+	if !loadFieldSet {
+		return errs
+	}
+
+	for _, loader := range c.loaders {
+		for key, field := range c.fieldSets[fieldSetKey].fieldMap {
+			value, found := loader.Get(fmt.Sprintf("%s_%s", fieldSetKey, key))
+			if found {
+				if err := field.set(loader.Name(), value); err != nil {
+					errs = append(errs, fmt.Errorf("field '%s' load error: %w", key, err))
+				}
+			}
+		}
+	}
+
+	return errs
+}
 
 func (c *AppConfig) getFieldValue(fieldSetKey, fieldKey string, expectedType string) (any, error) {
 	field, err := c.GetField(fieldSetKey, fieldKey)
