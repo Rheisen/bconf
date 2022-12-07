@@ -3,6 +3,7 @@ package bconf_test
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/rheisen/bconf"
 	"github.com/rheisen/bconf/bconfconst"
@@ -33,6 +34,12 @@ func TestAppConfig(t *testing.T) {
 					return "generated-default", nil
 				},
 			},
+			{
+				Key:         "read_timeout",
+				FieldType:   bconfconst.Duration,
+				Description: "Application read timeout for HTTP requests",
+				Default:     5 * time.Second,
+			},
 		},
 	}
 
@@ -56,6 +63,14 @@ func TestAppConfig(t *testing.T) {
 	}
 	if appID != "generated-default" {
 		t.Fatalf("unexected app_id value, found: '%s'", appID)
+	}
+
+	readTimeout, err := appConfig.GetDuration("app", "read_timeout")
+	if err != nil {
+		t.Fatalf("unexpected error getting app_read_timeout field: %s", err)
+	}
+	if readTimeout != 5*time.Second {
+		t.Fatalf("unexpected app_read_timeout value, found: '%d ms'", readTimeout.Milliseconds())
 	}
 
 	os.Setenv("BCONF_TEST_APP_ID", "environment-loaded-app-id")

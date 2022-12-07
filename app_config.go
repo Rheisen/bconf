@@ -420,7 +420,7 @@ func (c *AppConfig) GetBools(fieldSetKey, fieldKey string) ([]bool, error) {
 }
 
 func (c *AppConfig) GetTime(fieldSetKey, fieldKey string) (time.Time, error) {
-	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Bool)
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Time)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -448,7 +448,7 @@ func (c *AppConfig) GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error) 
 }
 
 func (c *AppConfig) GetDuration(fieldSetKey, fieldKey string) (time.Duration, error) {
-	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Bool)
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Duration)
 	if err != nil {
 		return 0, err
 	}
