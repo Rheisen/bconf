@@ -14,80 +14,72 @@ go get github.com/rheisen/bconf
 Below is an example of a `bconf.AppConfig`. Below this code block the behavior of the example is discussed.
 
 ```go
-baseConfig, errs := bconf.NewAppConfig(
-    bconf.ConfigDefinition{
-        Name: "external_http_api",
-        Description: "HTTP API for user authentication and authorization"
-        HandleHelpFlag: true,
-        Loaders: []bconf.Loader{
-            &bconf.EnvironmentLoader{KeyPrefix: "ext_http_api"},
-            &bconf.FlagLoader{},
-        },
-        ConfigFields: map[string]*bconf.Field{
-            "app_id": bconf.Field{
-                FieldType: bconfconst.String,
-                Description: "Application identifier",
-                DefaultGenerator: func () (any, error) {
-                    return fmt.Sprintf("%s", uuid.NewV4().String()), nil
-                },
+configuration := bconf.NewAppConfig("external_http_api", "HTTP API for user authentication and authorization")
+_ := configuration.SetLoaders(
+    &bconf.EnvironmentLoader{KeyPrefix: "ext_http_api"},
+    &bconf.FlagLoader{},
+},
+_ := configruation.AddFieldSet( 
+    "app",
+    []*bconf.Field{
+        {
+            Key: "id", 
+            FieldType: bconfconst.String,
+            Description: "Application identifier",
+            DefaultGenerator: func () (any, error) {
+                return fmt.Sprintf("%s", uuid.NewV4().String()), nil
             },
-            "session_secret": {
-                FieldType: bconfconst.String,
-                Description: "Application secret for session management",
-                Sensitive: true,
-                Required: true,
-                Validator: func(fieldValue any) error {
-                    secret := fieldValue.(string)
+        },
+        {
+            Key: "session_secret",
+            FieldType: bconfconst.String,
+            Description: "Application secret for session management",
+            Sensitive: true,
+            Required: true,
+            Validator: func(fieldValue any) error {
+                secret, _ := fieldValue.(string)
 
-                    minLength := 20
-                    if len(secret) < minLength {
-                        return fmt.Errorf(
-                            "problem setting session_secret: expected string of minimum %d characters (len=%d).",
-                            minLength,
-                            len(secret),
-                        )
-                    }
-                },
-            },
-            "log_level": {
-                FieldType: bconfconst.String,
-                Description: "Application logging level",
-                Default: "info",
-                Enumeration: []any{"debug","info","warn","error"},
-            },
-            "log_format": {
-                FieldType: bconfconst.String,
-                Description: "Application logging format",
-                Default: "json",
-                Enumeration: []any{"console", "json"},
-            },
-            "log_color_enabled": bconf.Field{
-                FieldType: bconfconst.Bool,
-                Description: "Application colored logs when format is 'console'",
-                Default: true,
+                minLength := 20
+                if len(secret) < minLength {
+                    return fmt.Errorf(
+                        "problem setting session_secret: expected string of minimum %d characters (len=%d).",
+                        minLength,
+                        len(secret),
+                    )
+                }
             },
         },
-    }
+    },
+)
+_ := configuration.AddFieldSet(
+    "log",
+    []*bconf.Field{
+        "level": {
+            FieldType: bconfconst.String,
+            Description: "Logging level",
+            Default: "info",
+            Enumeration: []any{"debug","info","warn","error"},
+        },
+        "format": {
+            FieldType: bconfconst.String,
+            Description: "Logging format",
+            Default: "json",
+            Enumeration: []any{"console", "json"},
+        },
+        "color_enabled": bconf.Field{
+            FieldType: bconfconst.Bool,
+            Description: "Colored logs when format is 'console'",
+            Default: true,
+        },
+    },
 )
 
-if len(errs) > 0 {
-    // handle configuration errors
+if errs := configuration.Register(true); len(errs) > 0 {
+    // handle configuration load errors
 }
 
-appLogLevel, err := b.GetString("log_level") // returns the log level found in order of: default -> ENV -> Flag order
+logLevel, err := b.GetString("log", "level") // returns the log level found in order of: default -> ENV -> Flag order
 if err != nil {
     // handle retrieval error
 }
 ```
-
-In order to create a `bconf.AppConfig`, you must supply a `bconf.AppConfigDefinition`. A `bconf.AppConfigDefinition`
-provides public fields that enable end-users to specify the behavior around loading application configuration values.
-
-In the example above, the `ConfigFields` parameter of the `bconf.AppConfigDefinition` provides a convenient way to map
-a configuration key to a `bonf.Field`. Similar to how a `bconf.AppConfigDefinition` allows end-users to specify the
-behavior around loading configuration values, a `bconf.Field` is a structure that allows an end-user to specify the
-desired behavior of a specific configuration value.
-
-Let's break down how the `session_secret` field is defined. It has a field type of "string", the field must be loaded
-from at least one of the configuration loaders, and it must pass the validator function (which checks that the
-secret meets a length requirement).
