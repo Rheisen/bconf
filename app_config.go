@@ -624,35 +624,25 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) s
 	spaceBuffer := "\t\t"
 
 	builder.WriteString(fmt.Sprintf("%s %s\n", key, field.FieldType))
+
 	if field.Description != "" {
 		builder.WriteString(spaceBuffer)
 		builder.WriteString(fmt.Sprintf("%s\n", field.Description))
 	}
+
 	if len(field.Enumeration) > 0 {
 		builder.WriteString(spaceBuffer)
 		builder.WriteString(fmt.Sprintf("Accepted values: %s\n", field.enumerationString()))
 	}
+
 	if field.Default != nil {
 		builder.WriteString(spaceBuffer)
 		builder.WriteString(fmt.Sprintf("Default value: '%v'\n", field.Default))
 	}
+
 	if field.DefaultGenerator != nil {
 		builder.WriteString(spaceBuffer)
 		builder.WriteString("Default value: <generated-at-run-time>\n")
-	}
-	if loadConditions != nil {
-		for _, condition := range *loadConditions {
-			fieldSetDependency, fieldDependency := condition.FieldDependency()
-			if fieldSetDependency != "" && fieldDependency != "" {
-				builder.WriteString(spaceBuffer)
-				builder.WriteString(
-					fmt.Sprintf("Loading depends on field: '%s_%s'", fieldSetDependency, fieldDependency),
-				)
-			} else {
-				builder.WriteString(spaceBuffer)
-				builder.WriteString("Loading depends on: <custom-load-condition-function>")
-			}
-		}
 	}
 
 	for _, loader := range c.loaders {
@@ -660,6 +650,21 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) s
 		if helpString != "" {
 			builder.WriteString(spaceBuffer)
 			builder.WriteString(fmt.Sprintf("%s\n", helpString))
+		}
+	}
+
+	if loadConditions != nil {
+		for _, condition := range *loadConditions {
+			fieldSetDependency, fieldDependency := condition.FieldDependency()
+			if fieldSetDependency != "" && fieldDependency != "" {
+				builder.WriteString(spaceBuffer)
+				builder.WriteString(
+					fmt.Sprintf("Loading depends on field: '%s_%s'\n", fieldSetDependency, fieldDependency),
+				)
+			} else {
+				builder.WriteString(spaceBuffer)
+				builder.WriteString("Loading depends on: <custom-load-condition-function>\n")
+			}
 		}
 	}
 
