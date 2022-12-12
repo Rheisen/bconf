@@ -312,12 +312,19 @@ func (c *AppConfig) ConfigMap() map[string]map[string]any {
 
 		for _, field := range fieldSet.fieldMap {
 			val, err := field.getValue()
+
 			if err != nil {
 				continue
 			}
 
 			if field.Sensitive {
 				fieldSetMap[field.Key] = "<sensitive-value>"
+				continue
+			}
+
+			if field.FieldType == bconfconst.Duration {
+				val = val.(time.Duration).Milliseconds()
+				fieldSetMap[fmt.Sprintf("%s_ms", field.Key)] = val
 				continue
 			}
 
