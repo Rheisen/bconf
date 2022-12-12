@@ -265,12 +265,15 @@ func (c *AppConfig) HelpString() string {
 		}
 		sort.Strings(keys)
 
+		conditionallyRequiredFields := []string{}
 		requiredFields := []string{}
 		optionalFields := []string{}
 		for _, key := range keys {
-			field := fields[key]
-			if field.Required {
+			fieldEntry := fields[key]
+			if fieldEntry.field.Required && fieldEntry.loadConditions == nil {
 				requiredFields = append(requiredFields, key)
+			} else if fieldEntry.field.Required && fieldEntry.loadConditions != nil {
+				conditionallyRequiredFields = append(conditionallyRequiredFields, key)
 			} else {
 				optionalFields = append(optionalFields, key)
 			}
@@ -279,6 +282,13 @@ func (c *AppConfig) HelpString() string {
 		if len(requiredFields) > 0 {
 			builder.WriteString("Required Configuration:\n")
 			for _, key := range requiredFields {
+				builder.WriteString(fmt.Sprintf("\t%s", c.fieldHelpString(fields, key)))
+			}
+		}
+
+		if len(conditionallyRequiredFields) > 0 {
+			builder.WriteString("Conditionally Required Configuration:\n")
+			for _, key := range conditionallyRequiredFields {
 				builder.WriteString(fmt.Sprintf("\t%s", c.fieldHelpString(fields, key)))
 			}
 		}
@@ -292,6 +302,32 @@ func (c *AppConfig) HelpString() string {
 	}
 
 	return builder.String()
+}
+
+func (c *AppConfig) ConfigMap() map[string]map[string]any {
+	configMap := map[string]map[string]any{}
+
+	for _, fieldSet := range c.fieldSets {
+		fieldSetMap := map[string]any{}
+
+		for _, field := range fieldSet.fieldMap {
+			val, err := field.getValue()
+			if err != nil {
+				continue
+			}
+
+			if field.Sensitive {
+				fieldSetMap[field.Key] = "<sensitive-value>"
+				continue
+			}
+
+			fieldSetMap[field.Key] = val
+		}
+
+		configMap[fieldSet.Key] = fieldSetMap
+	}
+
+	return configMap
 }
 
 func (c *AppConfig) GetFieldSetKeys() []string {
@@ -546,20 +582,33 @@ func (c *AppConfig) getFieldValue(fieldSetKey, fieldKey string, expectedType str
 	return fieldValue, nil
 }
 
-func (c *AppConfig) fields() map[string]*Field {
-	fields := map[string]*Field{}
+type fieldEntry struct {
+	field          *Field
+	loadConditions *[]LoadCondition
+}
+
+func (c *AppConfig) fields() map[string]*fieldEntry {
+	fields := map[string]*fieldEntry{}
 
 	for fieldSetKey, fieldSet := range c.fieldSets {
 		for _, field := range fieldSet.fieldMap {
-			fields[fmt.Sprintf("%s_%s", fieldSetKey, field.Key)] = field
+			entry := fieldEntry{field: field}
+
+			if len(fieldSet.LoadConditions) > 0 {
+				entry.loadConditions = &fieldSet.LoadConditions
+			}
+
+			fields[fmt.Sprintf("%s_%s", fieldSetKey, field.Key)] = &entry
 		}
 	}
 
 	return fields
 }
 
-func (c *AppConfig) fieldHelpString(fields map[string]*Field, key string) string {
-	field := fields[key]
+func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) string {
+	entry := fields[key]
+	field := entry.field
+	loadConditions := entry.loadConditions
 	if field == nil {
 		return "no field matching key"
 	}
@@ -583,6 +632,20 @@ func (c *AppConfig) fieldHelpString(fields map[string]*Field, key string) string
 	if field.DefaultGenerator != nil {
 		builder.WriteString(spaceBuffer)
 		builder.WriteString("Default value: <generated-at-run-time>\n")
+	}
+	if loadConditions != nil {
+		for _, condition := range *loadConditions {
+			fieldSetDependency, fieldDependency := condition.FieldDependency()
+			if fieldSetDependency != "" && fieldDependency != "" {
+				builder.WriteString(spaceBuffer)
+				builder.WriteString(
+					fmt.Sprintf("Loading depends on field: '%s_%s'", fieldSetDependency, fieldDependency),
+				)
+			} else {
+				builder.WriteString(spaceBuffer)
+				builder.WriteString("Loading depends on: <custom-load-condition-function>")
+			}
+		}
 	}
 
 	for _, loader := range c.loaders {
