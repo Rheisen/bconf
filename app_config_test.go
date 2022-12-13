@@ -40,7 +40,41 @@ func TestAppConfig(t *testing.T) {
 				Description: "Application read timeout for HTTP requests",
 				Default:     5 * time.Second,
 			},
+			{
+				Key:       "connect_sqlite",
+				FieldType: bconfconst.Bool,
+				Default:   true,
+			},
 		},
+	}
+
+	conditionalFieldSet := &bconf.FieldSet{
+		Key: "sqlite",
+		Fields: []*bconf.Field{
+			{
+				Key:       "server",
+				FieldType: bconfconst.String,
+				Required:  true,
+			},
+		},
+		LoadConditions: []bconf.LoadCondition{
+			&bconf.FieldCondition{
+				FieldSetKey: "app",
+				FieldKey:    "connect_sqlite",
+				Condition: func(fieldValue any) bool {
+					val, ok := fieldValue.(bool)
+					if !ok {
+						t.Fatalf("unexpected field-type value")
+					}
+
+					return val
+				},
+			},
+		},
+	}
+
+	if errs := appConfig.AddFieldSet(conditionalFieldSet); len(errs) < 1 {
+		t.Fatalf("errors expected when adding a field set with an unmet load condition dependency")
 	}
 
 	if errs := appConfig.AddFieldSet(appFieldSet); len(errs) > 0 {
@@ -51,7 +85,17 @@ func TestAppConfig(t *testing.T) {
 		t.Fatalf("errors expected when adding field set with duplicate key: %s", appFieldSet.Key)
 	}
 
+	if errs := appConfig.AddFieldSet(conditionalFieldSet); len(errs) > 1 {
+		t.Fatalf("unexpected errors adding conditional field-set: %v", errs)
+	}
+
 	t.Log(appConfig.HelpString())
+
+	if errs := appConfig.Register(false); len(errs) < 1 {
+		t.Fatalf("errors expected for unset required fields")
+	}
+
+	os.Setenv("BCONF_TEST_SQLITE_SERVER", "localhost")
 
 	if errs := appConfig.Register(false); len(errs) > 0 {
 		t.Fatalf("unexpected error registering application configuration: %v", errs)

@@ -105,6 +105,10 @@ func (c *AppConfig) AddFieldSet(fieldSet *FieldSet) []error {
 		}
 	}
 
+	if len(errs) > 0 {
+		return errs
+	}
+
 	fieldSet.initializeFieldMap()
 
 	// generate field-set field default values
@@ -564,6 +568,14 @@ func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
 				if err := field.set(loader.Name(), value); err != nil {
 					errs = append(errs, fmt.Errorf("field '%s' load error: %w", key, err))
 				}
+			}
+		}
+	}
+
+	for _, field := range fieldSet.fieldMap {
+		if field.Required {
+			if _, err := field.getValue(); err != nil {
+				errs = append(errs, fmt.Errorf("required field '%s' not set", field.Key))
 			}
 		}
 	}
