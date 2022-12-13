@@ -3,7 +3,8 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Bconf is an opinionated configuration framework that makes it easy to load and validate configuration values from
-a variety of supported "configuration loaders", e.g. environment variables, flags, etc.
+structures adhering to a common `Loader` interface, with Bconf supplying such structures to load values from environment
+and flag values.
 
 ### Installing
 
@@ -16,11 +17,16 @@ go get github.com/rheisen/bconf
 Below is an example of a `bconf.AppConfig`. Below this code block the behavior of the example is discussed.
 
 ```go
-configuration := bconf.NewAppConfig("external_http_api", "HTTP API for user authentication and authorization")
+configuration := bconf.NewAppConfig(
+    "external_http_api",
+    "HTTP API for user authentication and authorization",
+)
+
 _ := configuration.SetLoaders(
     &bconf.EnvironmentLoader{KeyPrefix: "ext_http_api"},
     &bconf.FlagLoader{},
-},
+)
+
 _ := configruation.AddFieldSet( 
     "app",
     []*bconf.Field{
@@ -76,11 +82,14 @@ _ := configuration.AddFieldSet(
     },
 )
 
+// Register with the option to handle --help / -h flag set to true
 if errs := configuration.Register(true); len(errs) > 0 {
     // handle configuration load errors
 }
 
-logLevel, err := b.GetString("log", "level") // returns the log level found in order of: default -> ENV -> Flag order
+// returns the log level found in order of: default -> environment -> flag -> user override (based on the loaders
+// set above).
+logLevel, err := b.GetString("log", "level") 
 if err != nil {
     // handle retrieval error
 }
