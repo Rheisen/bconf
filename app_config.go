@@ -575,7 +575,7 @@ func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
 	for _, field := range fieldSet.fieldMap {
 		if field.Required {
 			if _, err := field.getValue(); err != nil {
-				errs = append(errs, fmt.Errorf("required field '%s' not set", field.Key))
+				errs = append(errs, fmt.Errorf("required field '%s_%s' not set", fieldSet.Key, field.Key))
 			}
 		}
 	}
