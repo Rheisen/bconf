@@ -1,5 +1,7 @@
 # Bconf (Better / Base Configuration)
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 Bconf is an opinionated configuration framework that makes it easy to load and validate configuration values from
 a variety of supported "configuration loaders", e.g. environment variables, flags, etc.
 
