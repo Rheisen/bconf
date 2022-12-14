@@ -64,6 +64,11 @@ func TestFlagLoader(t *testing.T) {
 	if cloneSessionKeyLookup != sessionKeyValue {
 		t.Errorf("unexpected value for session_key from loader clone: '%s'", cloneSessionKeyLookup)
 	}
+
+	_, found = l.Get("random_key")
+	if found {
+		t.Errorf("not expecting to find a value for unset key")
+	}
 }
 
 func TestFlagLoaderWithKeyPrefix(t *testing.T) {

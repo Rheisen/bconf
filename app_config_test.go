@@ -23,6 +23,8 @@ func TestAppConfig(t *testing.T) {
 		t.Fatalf("unexpected errors setting loaders: %v", errs)
 	}
 
+	const appGeneratedID = "generated-default"
+
 	appFieldSet := &bconf.FieldSet{
 		Key: "app",
 		Fields: []*bconf.Field{
@@ -31,7 +33,7 @@ func TestAppConfig(t *testing.T) {
 				FieldType:   bconfconst.String,
 				Description: "Application identifier for use in application log messages and tracing",
 				DefaultGenerator: func() (any, error) {
-					return "generated-default", nil
+					return appGeneratedID, nil
 				},
 			},
 			{
@@ -106,7 +108,7 @@ func TestAppConfig(t *testing.T) {
 		t.Fatalf("unexpected error getting app_id field: %s", err)
 	}
 
-	if appID != "generated-default" {
+	if appID != appGeneratedID {
 		t.Fatalf("unexected app_id value, found: '%s'", appID)
 	}
 
@@ -130,5 +132,63 @@ func TestAppConfig(t *testing.T) {
 
 	if appID != "environment-loaded-app-id" {
 		t.Fatalf("unexected app_id value, found: '%s'", appID)
+	}
+}
+
+func TestBadAppConfigFields(t *testing.T) {
+	appConfig := bconf.NewAppConfig(
+		"bconf_test_app",
+		"Test-App is an HTTP server providing access to weather data",
+	)
+
+	configLoaders := []bconf.Loader{
+		&bconf.EnvironmentLoader{KeyPrefix: "bconf_test"},
+	}
+
+	if errs := appConfig.SetLoaders(configLoaders...); len(errs) > 0 {
+		t.Fatalf("unexpected errors setting loaders: %v", errs)
+	}
+
+	idFieldInvalidDefaultGenerator := &bconf.Field{
+		Key:         "id",
+		FieldType:   bconfconst.Int,
+		Description: "Application identifier for use in application log messages and tracing",
+		DefaultGenerator: func() (any, error) {
+			return "generated-default", nil
+		},
+	}
+	readTimeoutFieldInvalidDefault := &bconf.Field{
+		Key:         "read_timeout",
+		FieldType:   bconfconst.Duration,
+		Description: "Application read timeout for HTTP requests",
+		Default:     5,
+	}
+
+	emptyFieldSet := &bconf.FieldSet{}
+
+	if errs := appConfig.AddFieldSet(emptyFieldSet); len(errs) < 1 {
+		t.Fatalf("expected error adding empty field set")
+	}
+
+	invalidAppFieldSet := &bconf.FieldSet{
+		Key: "app",
+		Fields: []*bconf.Field{
+			idFieldInvalidDefaultGenerator,
+			readTimeoutFieldInvalidDefault,
+		},
+	}
+
+	if errs := appConfig.AddFieldSet(invalidAppFieldSet); len(errs) < 1 {
+		t.Fatalf("expected errors adding field set with invalid fields")
+	}
+
+	fieldSetWithEmptyField := &bconf.FieldSet{
+		Key: "default",
+		Fields: []*bconf.Field{
+			{},
+		},
+	}
+	if errs := appConfig.AddFieldSet(fieldSetWithEmptyField); len(errs) < 2 {
+		t.Fatalf("expected at least two errors adding a field-set with an empty field")
 	}
 }

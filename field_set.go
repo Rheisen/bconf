@@ -44,6 +44,10 @@ func (f *FieldSet) Clone() *FieldSet {
 func (f *FieldSet) validate() []error {
 	errs := []error{}
 
+	if f.Key == "" {
+		errs = append(errs, fmt.Errorf("field-set key required"))
+	}
+
 	if len(f.LoadConditions) > 0 {
 		for _, loadCondition := range f.LoadConditions {
 			if loadConditionErrs := loadCondition.Validate(); len(loadConditionErrs) > 0 {
