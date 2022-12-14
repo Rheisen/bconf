@@ -15,10 +15,7 @@ func (l *FlagLoader) Clone() Loader {
 	clone := *l
 
 	if len(l.OverrideLookup) > 0 {
-		clone.OverrideLookup = make([]string, len(l.OverrideLookup))
-		for index, value := range l.OverrideLookup {
-			clone.OverrideLookup[index] = value
-		}
+		_ = copy(clone.OverrideLookup, l.OverrideLookup)
 	}
 
 	return &clone

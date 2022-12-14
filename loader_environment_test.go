@@ -1,30 +1,33 @@
 package bconf_test
 
 import (
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/rheisen/bconf"
 )
 
-func TestFlagLoader(t *testing.T) {
-	l := bconf.FlagLoader{
-		KeyPrefix:      "ext_http_api",
-		OverrideLookup: []string{"--session_key=abc123", "--log_level", "error"},
+func TestEnvironmentLoader(t *testing.T) {
+	l := bconf.EnvironmentLoader{
+		KeyPrefix: "ext_http_api",
 	}
 	clone := l.Clone()
 
-	if l.Name() != "bconf_flags" {
+	if l.Name() != "bconf_environment" {
 		t.Errorf("unexpected loader name: '%s'", l.Name())
 	}
 
-	if !strings.Contains(l.HelpString("session_key"), "ext_http_api_session_key") {
+	if !strings.Contains(l.HelpString("session_key"), strings.ToUpper("ext_http_api_session_key")) {
 		t.Errorf("unexpected loader help string contents: '%s'", clone.HelpString("session_key"))
 	}
 
-	if !strings.Contains(clone.HelpString("session_key"), "ext_http_api_session_key") {
+	if !strings.Contains(clone.HelpString("session_key"), strings.ToUpper("ext_http_api_session_key")) {
 		t.Errorf("unexpected loader clone help string contents: '%s'", clone.HelpString("session_key"))
 	}
+
+	os.Setenv("EXT_HTTP_API_SESSION_KEY", "abc123")
+	os.Setenv("EXT_HTTP_API_LOG_LEVEL", "error")
 
 	sessionKey, found := l.Get("session_key")
 	if !found {
