@@ -3,12 +3,10 @@ package bconf
 import "fmt"
 
 type FieldSet struct {
+	fieldMap       map[string]*Field
 	Key            string
-	Fields         []*Field
 	LoadConditions []LoadCondition
-	// ---
-	// fieldMap is a mapping of field keys for faster lookups
-	fieldMap map[string]*Field
+	Fields         []*Field
 }
 
 func (f *FieldSet) Clone() *FieldSet {
@@ -23,6 +21,7 @@ func (f *FieldSet) Clone() *FieldSet {
 
 	if len(f.Fields) > 0 {
 		clone.Fields = make([]*Field, len(f.Fields))
+
 		for index, field := range f.Fields {
 			newField := *field
 			clone.Fields[index] = &newField
@@ -31,6 +30,7 @@ func (f *FieldSet) Clone() *FieldSet {
 
 	if len(f.fieldMap) > 0 {
 		clone.fieldMap = make(map[string]*Field, len(f.fieldMap))
+
 		for key, field := range f.fieldMap {
 			newField := *field
 			clone.fieldMap[key] = &newField
@@ -55,12 +55,14 @@ func (f *FieldSet) validate() []error {
 	}
 
 	fieldKeys := map[string]struct{}{}
+
 	if len(f.Fields) > 0 {
 		for _, field := range f.Fields {
 			if _, found := fieldKeys[field.Key]; found {
 				errs = append(errs, fmt.Errorf("duplicate field key found: '%s'", field.Key))
 				continue
 			}
+
 			fieldKeys[field.Key] = struct{}{}
 		}
 	}
@@ -96,16 +98,19 @@ func (f *FieldSet) generateFieldDefaults() []error {
 
 // validateFields validates field configuration, and can only be run after field defaults have been generated.
 func (f *FieldSet) validateFields() []error {
+	errs := []error{}
+
 	if f.fieldMap != nil {
 		for key, field := range f.fieldMap {
-			if errs := field.validate(); len(errs) > 0 {
-				for _, err := range errs {
+			if fieldErrs := field.validate(); len(fieldErrs) > 0 {
+				for _, err := range fieldErrs {
 					errs = append(errs, fmt.Errorf("field '%s' validation error: %w", key, err))
 				}
 			}
 		}
 	}
-	return nil
+
+	return errs
 }
 
 func (f *FieldSet) setField(fieldKey, fieldValue any) []error {

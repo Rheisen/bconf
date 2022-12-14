@@ -1,6 +1,7 @@
 # Bconf (Better / Base Configuration)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GoDoc](https://godoc.org/github.com/rheisen/bconf?status.svg)](https://pkg.go.dev/github.com/rheisen/bconf)
 
 Bconf is an opinionated configuration framework that makes it easy to load and validate configuration values from
 structures adhering to a common `Loader` interface, with Bconf supplying such structures to load values from environment

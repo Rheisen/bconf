@@ -1,9 +1,9 @@
 package bconf
 
 type FieldCondition struct {
+	Condition   func(fieldValue any) bool
 	FieldSetKey string
 	FieldKey    string
-	Condition   func(fieldValue any) bool
 }
 
 func (c *FieldCondition) Clone() LoadCondition {
@@ -12,7 +12,7 @@ func (c *FieldCondition) Clone() LoadCondition {
 	return &clone
 }
 
-func (c *FieldCondition) FieldDependency() (string, string) {
+func (c *FieldCondition) FieldDependency() (fieldSetKey, fieldKey string) {
 	return c.FieldSetKey, c.FieldKey
 }
 

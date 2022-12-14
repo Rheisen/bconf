@@ -7,8 +7,8 @@ import (
 )
 
 type FlagLoader struct {
-	KeyPrefix string
 	values    map[string]string
+	KeyPrefix string
 }
 
 func (l *FlagLoader) Clone() Loader {
@@ -65,12 +65,13 @@ func (l *FlagLoader) flagValues() map[string]string {
 	for parseArgs && argIdx < len(args) {
 		arg := args[argIdx]
 
-		if strings.HasPrefix(arg, "--") {
+		switch {
+		case strings.HasPrefix(arg, "--"):
 			arg = arg[2:]
-		} else if strings.HasPrefix(arg, "-") {
+		case strings.HasPrefix(arg, "-"):
 			arg = arg[1:]
-		} else {
-			argIdx += 1
+		default:
+			argIdx++
 			continue
 		}
 
@@ -80,10 +81,9 @@ func (l *FlagLoader) flagValues() map[string]string {
 		if splitIndex := strings.Index(arg, "="); splitIndex > -1 {
 			flagKey = arg[:splitIndex]
 			flagValue = arg[splitIndex+1:]
-
 			values[flagKey] = flagValue
+			argIdx++
 
-			argIdx += 1
 			continue
 		}
 
@@ -95,13 +95,14 @@ func (l *FlagLoader) flagValues() map[string]string {
 			if !strings.HasPrefix(nextArg, "--") && !strings.HasPrefix(nextArg, "-") {
 				values[flagKey] = nextArg
 				argIdx += 2
+
 				continue
 			}
 		}
 
 		values[flagKey] = "true"
+		argIdx++
 
-		argIdx += 1
 		continue
 	}
 

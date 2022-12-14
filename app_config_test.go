@@ -105,6 +105,7 @@ func TestAppConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error getting app_id field: %s", err)
 	}
+
 	if appID != "generated-default" {
 		t.Fatalf("unexected app_id value, found: '%s'", appID)
 	}
@@ -113,6 +114,7 @@ func TestAppConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error getting app_read_timeout field: %s", err)
 	}
+
 	if readTimeout != 5*time.Second {
 		t.Fatalf("unexpected app_read_timeout value, found: '%d ms'", readTimeout.Milliseconds())
 	}
@@ -125,6 +127,7 @@ func TestAppConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error getting app_id field: %s", err)
 	}
+
 	if appID != "environment-loaded-app-id" {
 		t.Fatalf("unexected app_id value, found: '%s'", appID)
 	}
