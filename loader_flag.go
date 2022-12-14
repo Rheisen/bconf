@@ -7,12 +7,21 @@ import (
 )
 
 type FlagLoader struct {
-	values    map[string]string
-	KeyPrefix string
+	KeyPrefix      string
+	OverrideLookup []string
 }
 
 func (l *FlagLoader) Clone() Loader {
-	return l
+	clone := *l
+
+	if len(l.OverrideLookup) > 0 {
+		clone.OverrideLookup = make([]string, len(l.OverrideLookup))
+		for index, value := range l.OverrideLookup {
+			clone.OverrideLookup[index] = value
+		}
+	}
+
+	return &clone
 }
 
 func (l *FlagLoader) Name() string {
@@ -54,7 +63,14 @@ func (l *FlagLoader) flagKey(key string) string {
 func (l *FlagLoader) flagValues() map[string]string {
 	values := map[string]string{}
 
-	args := os.Args[1:]
+	var args []string
+
+	if len(l.OverrideLookup) > 0 {
+		args = l.OverrideLookup
+	} else {
+		args = os.Args[1:]
+	}
+
 	if len(args) < 1 {
 		return values
 	}
