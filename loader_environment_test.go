@@ -1,6 +1,7 @@
 package bconf_test
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -9,8 +10,82 @@ import (
 )
 
 func TestEnvironmentLoader(t *testing.T) {
+	const sessionKey = "session_key"
+
+	const logLevelKey = "log_level"
+
+	const sessionKeyValue = "abc123"
+
+	const logLevelValue = "error"
+
+	envSessionKey := strings.ToUpper(sessionKey)
+	envLogLevelKey := strings.ToUpper(logLevelKey)
+
+	os.Setenv(envSessionKey, sessionKeyValue)
+	os.Setenv(envLogLevelKey, logLevelValue)
+
+	l := bconf.EnvironmentLoader{}
+	clone := l.Clone()
+
+	if l.Name() != "bconf_environment" {
+		t.Errorf("unexpected loader name: '%s'", l.Name())
+	}
+
+	if !strings.Contains(l.HelpString(sessionKey), envSessionKey) {
+		t.Errorf("unexpected loader help string contents: '%s'", clone.HelpString(sessionKey))
+	}
+
+	if !strings.Contains(clone.HelpString(sessionKey), envSessionKey) {
+		t.Errorf("unexpected loader clone help string contents: '%s'", clone.HelpString(sessionKey))
+	}
+
+	sessionKeyLookup, found := l.Get(sessionKey)
+	if !found {
+		t.Errorf("unexpected problem getting session_key value")
+	}
+
+	if sessionKeyLookup != sessionKeyValue {
+		t.Errorf("unexpected value for session key: '%s'", sessionKeyLookup)
+	}
+
+	logLevel, found := l.Get(logLevelKey)
+	if !found {
+		t.Errorf("unexpected problem getting log_level value")
+	}
+
+	if logLevel != logLevelValue {
+		t.Errorf("unexpected value for log level: '%s'", logLevel)
+	}
+
+	cloneSessionKeyLookup, cloneFound := clone.Get(sessionKey)
+	if !cloneFound {
+		t.Errorf("unexpected problem getting session_key value from loader clone")
+	}
+
+	if cloneSessionKeyLookup != sessionKeyValue {
+		t.Errorf("unexpected value for session_key from loader clone: '%s'", cloneSessionKeyLookup)
+	}
+}
+
+func TestEnvironmentLoaderWithKeyPrefix(t *testing.T) {
+	const sessionKey = "session_key"
+
+	const logLevelKey = "log_level"
+
+	const sessionKeyValue = "abc123"
+
+	const logLevelValue = "error"
+
+	const keyPrefix = "ext_http_api"
+
+	envSessionKey := strings.ToUpper(fmt.Sprintf("%s_%s", keyPrefix, sessionKey))
+	envLogLevelKey := strings.ToUpper(fmt.Sprintf("%s_%s", keyPrefix, logLevelKey))
+
+	os.Setenv(envSessionKey, sessionKeyValue)
+	os.Setenv(envLogLevelKey, logLevelValue)
+
 	l := bconf.EnvironmentLoader{
-		KeyPrefix: "ext_http_api",
+		KeyPrefix: keyPrefix,
 	}
 	clone := l.Clone()
 
@@ -18,41 +93,38 @@ func TestEnvironmentLoader(t *testing.T) {
 		t.Errorf("unexpected loader name: '%s'", l.Name())
 	}
 
-	if !strings.Contains(l.HelpString("session_key"), strings.ToUpper("ext_http_api_session_key")) {
-		t.Errorf("unexpected loader help string contents: '%s'", clone.HelpString("session_key"))
+	if !strings.Contains(l.HelpString(sessionKey), envSessionKey) {
+		t.Errorf("unexpected loader help string contents: '%s'", clone.HelpString(sessionKey))
 	}
 
-	if !strings.Contains(clone.HelpString("session_key"), strings.ToUpper("ext_http_api_session_key")) {
-		t.Errorf("unexpected loader clone help string contents: '%s'", clone.HelpString("session_key"))
+	if !strings.Contains(clone.HelpString(sessionKey), envSessionKey) {
+		t.Errorf("unexpected loader clone help string contents: '%s'", clone.HelpString(sessionKey))
 	}
 
-	os.Setenv("EXT_HTTP_API_SESSION_KEY", "abc123")
-	os.Setenv("EXT_HTTP_API_LOG_LEVEL", "error")
-
-	sessionKey, found := l.Get("session_key")
+	sessionKeyLookup, found := l.Get(sessionKey)
 	if !found {
 		t.Errorf("unexpected problem getting session_key value")
 	}
 
-	if sessionKey != "abc123" {
-		t.Errorf("unexpected value for session key: '%s'", sessionKey)
+	if sessionKeyLookup != sessionKeyValue {
+		t.Errorf("unexpected value for session key: '%s'", sessionKeyLookup)
 	}
 
-	logLevel, found := l.Get("log_level")
+	logLevel, found := l.Get(logLevelKey)
 	if !found {
 		t.Errorf("unexpected problem getting log_level value")
 	}
 
-	if logLevel != "error" {
+	if logLevel != logLevelValue {
 		t.Errorf("unexpected value for log level: '%s'", logLevel)
 	}
 
-	cloneSessionKey, cloneFound := l.Get("session_key")
+	cloneSessionKeyLookup, cloneFound := clone.Get(sessionKey)
 	if !cloneFound {
 		t.Errorf("unexpected problem getting session_key value from loader clone")
 	}
 
-	if cloneSessionKey != "abc123" {
-		t.Errorf("unexpected value for session_key from loader clone: '%s'", cloneSessionKey)
+	if cloneSessionKeyLookup != sessionKeyValue {
+		t.Errorf("unexpected value for session_key from loader clone: '%s'", cloneSessionKeyLookup)
 	}
 }
