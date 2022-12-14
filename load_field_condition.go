@@ -1,5 +1,7 @@
 package bconf
 
+import "fmt"
+
 type FieldCondition struct {
 	Condition   func(fieldValue any) bool
 	FieldSetKey string
@@ -21,5 +23,15 @@ func (c *FieldCondition) Load(value any) bool {
 }
 
 func (c *FieldCondition) Validate() []error {
-	return nil
+	errs := []error{}
+
+	if c.FieldSetKey == "" {
+		errs = append(errs, fmt.Errorf("field-set key required for field condition"))
+	}
+
+	if c.FieldKey == "" {
+		errs = append(errs, fmt.Errorf("field key required for field condition"))
+	}
+
+	return errs
 }

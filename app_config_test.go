@@ -257,3 +257,100 @@ func TestBadAppConfigFields(t *testing.T) {
 		t.Fatalf("expected an error adding field with generated default value not in enumeration")
 	}
 }
+
+func TestAppConfigWithLoadConditions(t *testing.T) {
+	const appName = "bconf_test_app"
+
+	const appDescription = "Test-App is an HTTP server providing access to weather data"
+
+	appConfig := bconf.NewAppConfig(
+		appName,
+		appDescription,
+	)
+
+	if appConfig.AppName() != appName {
+		t.Errorf("unexpected value returned from AppName(): '%s'", appConfig.AppName())
+	}
+
+	if appConfig.AppDescription() != appDescription {
+		t.Errorf("unexpected value returned from AppDescription(): '%s'", appConfig.AppDescription())
+	}
+
+	const defaultFieldSetKey = "default"
+
+	const defaultFieldSetLoadAppOneKey = "load_app_one"
+
+	const defaultFieldSetLoadAppTwoKey = "load_app_two"
+
+	loadAppOneField := &bconf.Field{
+		Key:       defaultFieldSetLoadAppOneKey,
+		FieldType: bconfconst.Bool,
+		Required:  true,
+	}
+
+	defaultFieldSet := &bconf.FieldSet{
+		Key:    "default",
+		Fields: []*bconf.Field{loadAppOneField},
+	}
+
+	fieldSetWithLoadCondition := &bconf.FieldSet{
+		Key:    "app_one",
+		Fields: []*bconf.Field{},
+		LoadConditions: []bconf.LoadCondition{
+			&bconf.FieldCondition{
+				FieldSetKey: defaultFieldSetKey,
+				FieldKey:    defaultFieldSetLoadAppOneKey,
+				Condition: func(fieldValue any) bool {
+					return true
+				},
+			},
+		},
+	}
+
+	fieldSetWithUnmetLoadCondition := &bconf.FieldSet{
+		Key:    "app_two",
+		Fields: []*bconf.Field{},
+		LoadConditions: []bconf.LoadCondition{
+			&bconf.FieldCondition{
+				FieldSetKey: defaultFieldSetKey,
+				FieldKey:    defaultFieldSetLoadAppTwoKey,
+				Condition: func(fieldValue any) bool {
+					return true
+				},
+			},
+		},
+	}
+
+	fieldSetWithInvalidLoadCondition := &bconf.FieldSet{
+		Key:    "app_three",
+		Fields: []*bconf.Field{},
+		LoadConditions: []bconf.LoadCondition{
+			&bconf.FieldCondition{
+				FieldSetKey: defaultFieldSetKey,
+				Condition: func(fieldValue any) bool {
+					return true
+				},
+			},
+		},
+	}
+
+	if errs := appConfig.AddFieldSet(fieldSetWithLoadCondition); len(errs) < 1 {
+		t.Fatalf("expected error adding field set with unmet field-set load condition")
+	}
+
+	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding default field-set: %v", errs)
+	}
+
+	if errs := appConfig.AddFieldSet(fieldSetWithUnmetLoadCondition); len(errs) < 1 {
+		t.Fatalf("expected error adding field set with unmet field load condition")
+	}
+
+	if errs := appConfig.AddFieldSet(fieldSetWithLoadCondition); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding field set with valid load condition: %v", errs)
+	}
+
+	if errs := appConfig.AddFieldSet(fieldSetWithInvalidLoadCondition); len(errs) < 1 {
+		t.Fatalf("expected error adding field set with invalid load condition")
+	}
+}
