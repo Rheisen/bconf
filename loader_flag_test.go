@@ -17,11 +17,14 @@ func TestFlagLoader(t *testing.T) {
 
 	const logLevelValue = "error"
 
+	const logColorKey = "log_color"
+
 	l := bconf.FlagLoader{
 		OverrideLookup: []string{
 			fmt.Sprintf("--%s=%s", sessionKey, sessionKeyValue),
 			fmt.Sprintf("--%s", logLevelKey),
 			logLevelValue,
+			fmt.Sprintf("-%s", logColorKey),
 		},
 	}
 	clone := l.Clone()
@@ -63,6 +66,15 @@ func TestFlagLoader(t *testing.T) {
 
 	if cloneSessionKeyLookup != sessionKeyValue {
 		t.Errorf("unexpected value for session_key from loader clone: '%s'", cloneSessionKeyLookup)
+	}
+
+	logColor, found := l.Get(logColorKey)
+	if !found {
+		t.Errorf("unexpected problem getting log_color value")
+	}
+
+	if logColor != "true" {
+		t.Errorf("unexpected log color value: '%s'", logColor)
 	}
 
 	_, found = l.Get("random_key")

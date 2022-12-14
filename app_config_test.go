@@ -10,10 +10,22 @@ import (
 )
 
 func TestAppConfig(t *testing.T) {
+	const appName = "bconf_test_app"
+
+	const appDescription = "Test-App is an HTTP server providing access to weather data"
+
 	appConfig := bconf.NewAppConfig(
-		"bconf_test_app",
-		"Test-App is an HTTP server providing access to weather data",
+		appName,
+		appDescription,
 	)
+
+	if appConfig.AppName() != appName {
+		t.Errorf("unexpected value returned from AppName(): '%s'", appConfig.AppName())
+	}
+
+	if appConfig.AppDescription() != appDescription {
+		t.Errorf("unexpected value returned from AppDescription(): '%s'", appConfig.AppDescription())
+	}
 
 	configLoaders := []bconf.Loader{
 		&bconf.EnvironmentLoader{KeyPrefix: "bconf_test"},
@@ -141,6 +153,15 @@ func TestBadAppConfigFields(t *testing.T) {
 		"Test-App is an HTTP server providing access to weather data",
 	)
 
+	configLoadersWithDuplicates := []bconf.Loader{
+		&bconf.EnvironmentLoader{KeyPrefix: "bconf_test"},
+		&bconf.EnvironmentLoader{},
+	}
+
+	if errs := appConfig.SetLoaders(configLoadersWithDuplicates...); len(errs) < 1 {
+		t.Fatalf("expected error setting loaders with duplicates")
+	}
+
 	configLoaders := []bconf.Loader{
 		&bconf.EnvironmentLoader{KeyPrefix: "bconf_test"},
 	}
@@ -163,7 +184,6 @@ func TestBadAppConfigFields(t *testing.T) {
 		Description: "Application read timeout for HTTP requests",
 		Default:     5,
 	}
-
 	emptyFieldSet := &bconf.FieldSet{}
 
 	if errs := appConfig.AddFieldSet(emptyFieldSet); len(errs) < 1 {
@@ -188,7 +208,52 @@ func TestBadAppConfigFields(t *testing.T) {
 			{},
 		},
 	}
+
 	if errs := appConfig.AddFieldSet(fieldSetWithEmptyField); len(errs) < 2 {
 		t.Fatalf("expected at least two errors adding a field-set with an empty field")
+	}
+
+	fieldWithDefaultAndRequiredSet := &bconf.Field{
+		Key:       "log_level",
+		FieldType: bconfconst.String,
+		Default:   "info",
+		Required:  true,
+	}
+
+	fieldWithDefaultNotInEnumeration := &bconf.Field{
+		Key:         "log_level",
+		FieldType:   bconfconst.String,
+		Default:     "fatal",
+		Enumeration: []any{"debug", "info", "warn", "error"},
+	}
+
+	fieldWithGeneratedDefaultNotInEnumeration := &bconf.Field{
+		Key:       "log_level",
+		FieldType: bconfconst.String,
+		DefaultGenerator: func() (any, error) {
+			return "fatal", nil
+		},
+		Enumeration: []any{"debug", "info", "warn", "error"},
+	}
+
+	fieldSetWithInvalidField := &bconf.FieldSet{
+		Key:    "default",
+		Fields: []*bconf.Field{fieldWithDefaultAndRequiredSet},
+	}
+
+	if errs := appConfig.AddFieldSet(fieldSetWithInvalidField); len(errs) < 1 {
+		t.Fatalf("expected an error adding field with default and required set")
+	}
+
+	fieldSetWithInvalidField.Fields = []*bconf.Field{fieldWithDefaultNotInEnumeration}
+
+	if errs := appConfig.AddFieldSet(fieldSetWithInvalidField); len(errs) < 1 {
+		t.Fatalf("expected an error adding field with default value not in enumeration")
+	}
+
+	fieldSetWithInvalidField.Fields = []*bconf.Field{fieldWithGeneratedDefaultNotInEnumeration}
+
+	if errs := appConfig.AddFieldSet(fieldSetWithInvalidField); len(errs) < 1 {
+		t.Fatalf("expected an error adding field with generated default value not in enumeration")
 	}
 }

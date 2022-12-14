@@ -53,6 +53,8 @@ func (c *AppConfig) SetLoaders(loaders ...Loader) []error {
 		if _, found := loaderNames[loader.Name()]; found {
 			errs = append(errs, fmt.Errorf("duplicate loader name found: '%s'", loader.Name()))
 		}
+
+		loaderNames[loader.Name()] = struct{}{}
 	}
 
 	if len(errs) > 0 {
