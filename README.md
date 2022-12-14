@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GoDoc](https://godoc.org/github.com/rheisen/bconf?status.svg)](https://pkg.go.dev/github.com/rheisen/bconf)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rheisen/bconf)](https://goreportcard.com/report/github.com/rheisen/bconf)
-[![Tests](https://github.com/rheisen/bconf/actions/workflows/golang-test.yaml/badge.svg?branch=main)](https://github.com/rheisen/bconf/actions/workflows/golang-test.yaml)
+[![Build Status](https://github.com/rheisen/bconf/actions/workflows/golang-test.yml/badge.svg?branch=main)](https://github.com/rheisen/bconf/actions/workflows/golang-test.yml)
 
 Bconf is an opinionated configuration framework that makes it easy to load and validate configuration values from
 structures adhering to a common `Loader` interface, with Bconf supplying such structures to load values from environment
