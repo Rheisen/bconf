@@ -89,8 +89,8 @@ if errs := configuration.Register(true); len(errs) > 0 {
     // handle configuration load errors
 }
 
-// returns the log level found in order of: default -> environment -> flag -> user override (based on the loaders
-// set above).
+// returns the log level found in order of: default -> environment -> flag -> user override
+// (based on the loaders set above).
 logLevel, err := b.GetString("log", "level") 
 if err != nil {
     // handle retrieval error
