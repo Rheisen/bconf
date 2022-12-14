@@ -714,57 +714,57 @@ func (c *AppConfig) printHelpString() {
 	fmt.Printf("%s", c.HelpString())
 }
 
-func (c *AppConfig) fieldSetLoadOrder() ([]*FieldSet, error) {
-	fieldSets := make([]*FieldSet, len(c.fieldSets))
-	fieldSetAvailable := map[string]struct{}{}
+// func (c *AppConfig) fieldSetLoadOrder() ([]*FieldSet, error) {
+// 	fieldSets := make([]*FieldSet, len(c.fieldSets))
+// 	fieldSetAvailable := map[string]struct{}{}
 
-	var iter func(fieldSet *FieldSet, seen map[string]struct{}) error
-	iter = func(fieldSet *FieldSet, seen map[string]struct{}) error {
-		if _, seen := seen[fieldSet.Key]; seen {
-			return fmt.Errorf("field-set cycle detected")
-		}
+// 	var iter func(fieldSet *FieldSet, seen map[string]struct{}) error
+// 	iter = func(fieldSet *FieldSet, seen map[string]struct{}) error {
+// 		if _, seen := seen[fieldSet.Key]; seen {
+// 			return fmt.Errorf("field-set cycle detected")
+// 		}
 
-		if _, available := fieldSetAvailable[fieldSet.Key]; available {
-			return nil
-		}
+// 		if _, available := fieldSetAvailable[fieldSet.Key]; available {
+// 			return nil
+// 		}
 
-		if len(fieldSet.LoadConditions) == 0 {
-			fieldSets = append(fieldSets, fieldSet)
-			fieldSetAvailable[fieldSet.Key] = struct{}{}
+// 		if len(fieldSet.LoadConditions) == 0 {
+// 			fieldSets = append(fieldSets, fieldSet)
+// 			fieldSetAvailable[fieldSet.Key] = struct{}{}
 
-			return nil
-		}
+// 			return nil
+// 		}
 
-		for _, condition := range fieldSet.LoadConditions {
-			fieldSetKey, _ := condition.FieldDependency()
-			if fieldSetKey != "" {
-				if _, fieldSetExists := c.fieldSets[fieldSetKey]; !fieldSetExists {
-					return fmt.Errorf("field-set dependency on non-existent field-set: '%s'", fieldSetKey)
-				}
+// 		for _, condition := range fieldSet.LoadConditions {
+// 			fieldSetKey, _ := condition.FieldDependency()
+// 			if fieldSetKey != "" {
+// 				if _, fieldSetExists := c.fieldSets[fieldSetKey]; !fieldSetExists {
+// 					return fmt.Errorf("field-set dependency on non-existent field-set: '%s'", fieldSetKey)
+// 				}
 
-				_, fieldSetAvailable := fieldSetAvailable[fieldSetKey]
-				if !fieldSetAvailable {
-					seen[fieldSet.Key] = struct{}{}
-					if err := iter(c.fieldSets[fieldSetKey], seen); err != nil {
-						return err
-					}
+// 				_, fieldSetAvailable := fieldSetAvailable[fieldSetKey]
+// 				if !fieldSetAvailable {
+// 					seen[fieldSet.Key] = struct{}{}
+// 					if err := iter(c.fieldSets[fieldSetKey], seen); err != nil {
+// 						return err
+// 					}
 
-					continue
-				}
-			}
-		}
+// 					continue
+// 				}
+// 			}
+// 		}
 
-		fieldSets = append(fieldSets, fieldSet)
-		fieldSetAvailable[fieldSet.Key] = struct{}{}
+// 		fieldSets = append(fieldSets, fieldSet)
+// 		fieldSetAvailable[fieldSet.Key] = struct{}{}
 
-		return nil
-	}
+// 		return nil
+// 	}
 
-	for _, fieldSet := range c.fieldSets {
-		if err := iter(fieldSet, map[string]struct{}{}); err != nil {
-			return fieldSets, err
-		}
-	}
+// 	for _, fieldSet := range c.fieldSets {
+// 		if err := iter(fieldSet, map[string]struct{}{}); err != nil {
+// 			return fieldSets, err
+// 		}
+// 	}
 
-	return fieldSets, nil
-}
+// 	return fieldSets, nil
+// }
