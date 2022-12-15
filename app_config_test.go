@@ -112,7 +112,7 @@ func TestAppConfig(t *testing.T) {
 	os.Setenv("BCONF_TEST_SQLITE_SERVER", "localhost")
 
 	if errs := appConfig.Register(false); len(errs) > 0 {
-		t.Fatalf("unexpected error registering application configuration: %v", errs)
+		t.Fatalf("unexpected errors registering application configuration: %v", errs)
 	}
 
 	appID, err := appConfig.GetString("app", "id")
@@ -143,6 +143,19 @@ func TestAppConfig(t *testing.T) {
 	}
 
 	if appID != "environment-loaded-app-id" {
+		t.Fatalf("unexected app_id value, found: '%s'", appID)
+	}
+
+	if err := appConfig.SetField("app", "id", "user-override-value"); err != nil {
+		t.Fatalf("unexpected error setting app id value: %s", err)
+	}
+
+	appID, err = appConfig.GetString("app", "id")
+	if err != nil {
+		t.Fatalf("unexpected error getting app_id field: %s", err)
+	}
+
+	if appID != "user-override-value" {
 		t.Fatalf("unexected app_id value, found: '%s'", appID)
 	}
 }
@@ -268,14 +281,6 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 		appDescription,
 	)
 
-	if appConfig.AppName() != appName {
-		t.Errorf("unexpected value returned from AppName(): '%s'", appConfig.AppName())
-	}
-
-	if appConfig.AppDescription() != appDescription {
-		t.Errorf("unexpected value returned from AppDescription(): '%s'", appConfig.AppDescription())
-	}
-
 	const defaultFieldSetKey = "default"
 
 	const defaultFieldSetLoadAppOneKey = "load_app_one"
@@ -352,5 +357,92 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 
 	if errs := appConfig.AddFieldSet(fieldSetWithInvalidLoadCondition); len(errs) < 1 {
 		t.Fatalf("expected error adding field set with invalid load condition")
+	}
+}
+
+func TestAppConfigObservability(t *testing.T) {
+	const appName = "bconf_test_app"
+
+	const appDescription = "Test-App is an HTTP server providing access to weather data"
+
+	appConfig := bconf.NewAppConfig(
+		appName,
+		appDescription,
+	)
+
+	_ = appConfig.SetLoaders(&bconf.EnvironmentLoader{})
+
+	idFieldKey := "id"
+	idFieldGeneratedDefaultValue := "generated-default-value"
+	idField := &bconf.Field{
+		Key:         idFieldKey,
+		FieldType:   bconfconst.String,
+		Description: "Application identifier for use in application log messages and tracing",
+		DefaultGenerator: func() (any, error) {
+			return idFieldGeneratedDefaultValue, nil
+		},
+	}
+
+	sessionSecretFieldKey := "session_secret"
+	sessionSecretEnvironmentValue := "environment-session-secret-value"
+	sessionSecretField := &bconf.Field{
+		Key:       sessionSecretFieldKey,
+		FieldType: bconfconst.String,
+		Sensitive: true,
+		Validator: func(fieldValue any) error {
+			return nil
+		},
+	}
+
+	os.Setenv("APP_SESSION_SECRET", sessionSecretEnvironmentValue)
+
+	appFieldSetKey := "app"
+	appFieldSet := &bconf.FieldSet{
+		Key:    appFieldSetKey,
+		Fields: []*bconf.Field{idField, sessionSecretField},
+	}
+
+	if errs := appConfig.AddFieldSet(appFieldSet); len(errs) > 0 {
+		t.Fatalf("unexpected errors adding app field set: %v", errs)
+	}
+
+	foundFieldSetKeys := appConfig.GetFieldSetKeys()
+	if len(foundFieldSetKeys) != 1 {
+		t.Fatalf("unexpected length of field set keys returned from app config: %d", len(foundFieldSetKeys))
+	}
+	if foundFieldSetKeys[0] != appFieldSetKey {
+		t.Fatalf("unexpected field-set key in keys returned from app config: '%s'", foundFieldSetKeys[0])
+	}
+
+	fieldMap := appConfig.ConfigMap()
+
+	if _, found := fieldMap[appFieldSetKey]; !found {
+		t.Fatalf("expected to find app field-set key in config map")
+	}
+
+	if _, found := fieldMap[appFieldSetKey][idFieldKey]; !found {
+		t.Fatalf("expected to find app id key in config map")
+	}
+
+	if _, found := fieldMap[appFieldSetKey][sessionSecretFieldKey]; found {
+		t.Fatalf("unexpected session-secret key found in config map when no value is set")
+	}
+
+	if errs := appConfig.Register(false); errs != nil {
+		t.Fatalf("unexpected errors registering app config: %v", errs)
+	}
+
+	fieldMap = appConfig.ConfigMap()
+
+	fieldMapValue, found := fieldMap[appFieldSetKey][sessionSecretFieldKey]
+	if !found {
+		t.Fatalf("expected to find session-secret key in config map")
+	}
+	if fieldMapValue == sessionSecretEnvironmentValue {
+		t.Fatalf(
+			"unexpected sensitive value (%s) output in config map values: '%s'",
+			sessionSecretFieldKey,
+			fieldMapValue,
+		)
 	}
 }

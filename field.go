@@ -105,50 +105,12 @@ func (f *Field) validate() []error {
 			return errs
 		}
 
-		// Check that a given default value is in the list of enumerated acceptable values
-		if f.Default != nil && !f.valueInEnumeration(f.Default) {
-			errs = append(
-				errs,
-				fmt.Errorf(
-					"invalid default value: default value '%s' expected in enumeration list",
-					f.Default,
-				),
-			)
+		if err := f.validateDefaultValuesInEnumeration(); err != nil {
+			errs = append(errs, err)
 		}
 
-		if f.generatedDefault != nil && !f.valueInEnumeration(f.generatedDefault) {
-			errs = append(
-				errs,
-				fmt.Errorf(
-					"invalid generated default value: default value '%s' expected in enumeration list",
-					f.Default,
-				),
-			)
-		}
-
-		// Check that the validator passes for default values
-		if f.Default != nil && f.Validator != nil {
-			if err := f.Validator(f.Default); err != nil {
-				errs = append(
-					errs,
-					fmt.Errorf(
-						"invalid default value: error from Validator: %w",
-						err,
-					),
-				)
-			}
-		}
-
-		if f.generatedDefault != nil && f.Validator != nil {
-			if err := f.Validator(f.generatedDefault); err != nil {
-				errs = append(
-					errs,
-					fmt.Errorf(
-						"invalid generated default value: error from Validator: %w",
-						err,
-					),
-				)
-			}
+		if err := f.validateDefaultValuesPassValidatorFunc(); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
@@ -214,6 +176,46 @@ func (f *Field) validateEnumerationValuesFieldType(fieldType string) []error {
 	}
 
 	return errs
+}
+
+func (f *Field) validateDefaultValuesInEnumeration() error {
+	if f.Default != nil && !f.valueInEnumeration(f.Default) {
+		return fmt.Errorf(
+			"invalid default value: default value '%s' expected in enumeration list",
+			f.Default,
+		)
+	}
+
+	if f.generatedDefault != nil && !f.valueInEnumeration(f.generatedDefault) {
+		return fmt.Errorf(
+			"invalid generated default value: default value '%s' expected in enumeration list",
+			f.Default,
+		)
+	}
+
+	return nil
+}
+
+func (f *Field) validateDefaultValuesPassValidatorFunc() error {
+	if f.Default != nil && f.Validator != nil {
+		if err := f.Validator(f.Default); err != nil {
+			return fmt.Errorf(
+				"invalid default value: error from Validator: %w",
+				err,
+			)
+		}
+	}
+
+	if f.generatedDefault != nil && f.Validator != nil {
+		if err := f.Validator(f.generatedDefault); err != nil {
+			return fmt.Errorf(
+				"invalid generated default value: error from Validator: %w",
+				err,
+			)
+		}
+	}
+
+	return nil
 }
 
 func (f *Field) getValue() (any, error) {

@@ -116,7 +116,3 @@ func (f *FieldSet) validateFields() []error {
 
 	return errs
 }
-
-func (f *FieldSet) setField(fieldKey, fieldValue any) []error {
-	return nil
-}

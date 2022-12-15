@@ -141,14 +141,6 @@ func (c *AppConfig) AddFieldSet(fieldSet *FieldSet) []error {
 		return errs
 	}
 
-	// persist the field-set to AppConfig
-	if c.fieldSets == nil {
-		c.fieldSets = map[string]*FieldSet{fieldSet.Key: fieldSet}
-		c.orderedFieldSets = append(c.orderedFieldSets, fieldSet)
-
-		return nil
-	}
-
 	if _, keyFound := c.fieldSets[fieldSet.Key]; keyFound {
 		errs = append(
 			errs,
