@@ -402,10 +402,7 @@ func (c *AppConfig) GetString(fieldSetKey, fieldKey string) (string, error) {
 		return "", err
 	}
 
-	val, ok := fieldValue.(string)
-	if !ok {
-		return "", fmt.Errorf("problem parsing value for key '%s'", fieldSetKey)
-	}
+	val, _ := fieldValue.(string)
 
 	return val, nil
 }
@@ -416,10 +413,7 @@ func (c *AppConfig) GetStrings(fieldSetKey, fieldKey string) ([]string, error) {
 		return nil, err
 	}
 
-	val, ok := fieldValue.([]string)
-	if !ok {
-		return nil, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
-	}
+	val, _ := fieldValue.([]string)
 
 	return val, nil
 }
@@ -430,10 +424,7 @@ func (c *AppConfig) GetInt(fieldSetKey, fieldKey string) (int, error) {
 		return 0, err
 	}
 
-	val, ok := fieldValue.(int)
-	if !ok {
-		return 0, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
-	}
+	val, _ := fieldValue.(int)
 
 	return val, nil
 }
@@ -444,10 +435,7 @@ func (c *AppConfig) GetInts(fieldSetKey, fieldKey string) ([]int, error) {
 		return nil, err
 	}
 
-	val, ok := fieldValue.([]int)
-	if !ok {
-		return nil, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
-	}
+	val, _ := fieldValue.([]int)
 
 	return val, nil
 }
@@ -458,10 +446,7 @@ func (c *AppConfig) GetBool(fieldSetKey, fieldKey string) (bool, error) {
 		return false, err
 	}
 
-	val, ok := fieldValue.(bool)
-	if !ok {
-		return false, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
-	}
+	val, _ := fieldValue.(bool)
 
 	return val, nil
 }
@@ -472,10 +457,7 @@ func (c *AppConfig) GetBools(fieldSetKey, fieldKey string) ([]bool, error) {
 		return nil, err
 	}
 
-	val, ok := fieldValue.([]bool)
-	if !ok {
-		return nil, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
-	}
+	val, _ := fieldValue.([]bool)
 
 	return val, nil
 }
@@ -486,10 +468,7 @@ func (c *AppConfig) GetTime(fieldSetKey, fieldKey string) (time.Time, error) {
 		return time.Time{}, err
 	}
 
-	val, ok := fieldValue.(time.Time)
-	if !ok {
-		return time.Time{}, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
-	}
+	val, _ := fieldValue.(time.Time)
 
 	return val, nil
 }
@@ -500,10 +479,7 @@ func (c *AppConfig) GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error) 
 		return nil, err
 	}
 
-	val, ok := fieldValue.([]time.Time)
-	if !ok {
-		return nil, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
-	}
+	val, _ := fieldValue.([]time.Time)
 
 	return val, nil
 }
@@ -514,10 +490,7 @@ func (c *AppConfig) GetDuration(fieldSetKey, fieldKey string) (time.Duration, er
 		return 0, err
 	}
 
-	val, ok := fieldValue.(time.Duration)
-	if !ok {
-		return 0, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
-	}
+	val, _ := fieldValue.(time.Duration)
 
 	return val, nil
 }
@@ -528,10 +501,7 @@ func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration,
 		return nil, err
 	}
 
-	val, ok := fieldValue.([]time.Duration)
-	if !ok {
-		return nil, fmt.Errorf("problem parsing value for key '%s'", fieldKey)
-	}
+	val, _ := fieldValue.([]time.Duration)
 
 	return val, nil
 }
