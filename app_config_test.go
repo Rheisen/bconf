@@ -146,7 +146,7 @@ func TestAppConfig(t *testing.T) {
 		t.Fatalf("unexected app_id value, found: '%s'", appID)
 	}
 
-	if err := appConfig.SetField("app", "id", "user-override-value"); err != nil {
+	if err = appConfig.SetField("app", "id", "user-override-value"); err != nil {
 		t.Fatalf("unexpected error setting app id value: %s", err)
 	}
 
@@ -410,6 +410,7 @@ func TestAppConfigObservability(t *testing.T) {
 	if len(foundFieldSetKeys) != 1 {
 		t.Fatalf("unexpected length of field set keys returned from app config: %d", len(foundFieldSetKeys))
 	}
+
 	if foundFieldSetKeys[0] != appFieldSetKey {
 		t.Fatalf("unexpected field-set key in keys returned from app config: '%s'", foundFieldSetKeys[0])
 	}
@@ -438,6 +439,7 @@ func TestAppConfigObservability(t *testing.T) {
 	if !found {
 		t.Fatalf("expected to find session-secret key in config map")
 	}
+
 	if fieldMapValue == sessionSecretEnvironmentValue {
 		t.Fatalf(
 			"unexpected sensitive value (%s) output in config map values: '%s'",
