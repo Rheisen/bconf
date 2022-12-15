@@ -200,7 +200,7 @@ func (f *Field) validateDefaultValuesPassValidatorFunc() error {
 	if f.Default != nil && f.Validator != nil {
 		if err := f.Validator(f.Default); err != nil {
 			return fmt.Errorf(
-				"invalid default value: error from Validator: %w",
+				"invalid default value: error from field validator: %w",
 				err,
 			)
 		}
@@ -209,7 +209,7 @@ func (f *Field) validateDefaultValuesPassValidatorFunc() error {
 	if f.generatedDefault != nil && f.Validator != nil {
 		if err := f.Validator(f.generatedDefault); err != nil {
 			return fmt.Errorf(
-				"invalid generated default value: error from Validator: %w",
+				"invalid generated default value: error from field validator: %w",
 				err,
 			)
 		}

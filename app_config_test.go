@@ -1,6 +1,7 @@
 package bconf_test
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -457,6 +458,128 @@ func TestAppConfigObservability(t *testing.T) {
 			sessionSecretFieldKey,
 			fieldMapValue,
 		)
+	}
+}
+
+func TestAppConfigFieldValidators(t *testing.T) {
+	appConfig := bconf.NewAppConfig(
+		"app",
+		"description",
+	)
+
+	_ = appConfig.SetLoaders(&bconf.EnvironmentLoader{})
+
+	const stringFieldKey = "string"
+
+	stringFieldValue := "string_one"
+	validatorExpectedValue := "string_two"
+	validatorErrorString := fmt.Sprintf("expected value to be '%s'", validatorExpectedValue)
+	stringField := &bconf.Field{
+		Key:       stringFieldKey,
+		FieldType: bconfconst.String,
+		Default:   stringFieldValue,
+		Validator: func(fieldValue any) error {
+			val, _ := fieldValue.(string)
+
+			if val != validatorExpectedValue {
+				return errors.New(validatorErrorString)
+			}
+
+			return nil
+		},
+	}
+
+	const defaultFieldSetKey = "default"
+
+	defaultFieldSet := &bconf.FieldSet{
+		Key: defaultFieldSetKey,
+		Fields: []*bconf.Field{
+			stringField,
+		},
+	}
+
+	expectContains := fmt.Sprintf(
+		"invalid default value: error from field validator: %s",
+		validatorErrorString,
+	)
+
+	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) != 1 {
+		t.Fatalf("expected 1 error adding default field-set with default value not passing validator: %v", errs)
+	} else if !strings.Contains(errs[0].Error(), expectContains) {
+		t.Fatalf("unexpected error message: %s", errs[0])
+	}
+
+	stringField.Default = nil
+	stringField.DefaultGenerator = func() (any, error) {
+		return stringFieldValue, nil
+	}
+
+	expectContains = fmt.Sprintf(
+		"invalid generated default value: error from field validator: %s",
+		validatorErrorString,
+	)
+
+	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) != 1 {
+		t.Fatalf(
+			"expected 1 error adding default field-set with generated default value not passing validator: %v",
+			errs,
+		)
+	} else if !strings.Contains(errs[0].Error(), expectContains) {
+		t.Fatalf("unexpected error message: %s", errs[0])
+	}
+
+	stringField.Default = validatorExpectedValue
+	stringField.DefaultGenerator = nil
+
+	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding field-set: %v", errs)
+	}
+
+	if err := appConfig.SetField(defaultFieldSetKey, stringFieldKey, stringFieldValue); err == nil {
+		t.Fatalf("expected error setting field value violating validator func")
+	}
+}
+
+func TestAppConfigFieldDefaultGenerators(t *testing.T) {
+	appConfig := bconf.NewAppConfig(
+		"app",
+		"description",
+	)
+
+	_ = appConfig.SetLoaders(&bconf.EnvironmentLoader{})
+
+	const stringFieldKey = "string"
+
+	defaultGeneratorError := "problem generating default"
+	stringField := &bconf.Field{
+		Key:       stringFieldKey,
+		FieldType: bconfconst.String,
+		DefaultGenerator: func() (any, error) {
+			return nil, errors.New(defaultGeneratorError)
+		},
+	}
+
+	const defaultFieldSetKey = "default"
+
+	defaultFieldSet := &bconf.FieldSet{
+		Key: defaultFieldSetKey,
+		Fields: []*bconf.Field{
+			stringField,
+		},
+	}
+
+	expectContains := fmt.Sprintf(
+		"default value generation error: problem generating default field value: %s",
+		defaultGeneratorError,
+	)
+
+	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) != 1 {
+		t.Fatalf(
+			"expected 1 error adding default field-set with generated default value function error: %v",
+			errs,
+		)
+	} else if !strings.Contains(errs[0].Error(), expectContains) {
+		t.Fatalf("unexpected error message: %s", errs[0])
 	}
 }
 
