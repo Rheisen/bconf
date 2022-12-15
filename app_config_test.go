@@ -1,7 +1,9 @@
 package bconf_test
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -458,75 +460,47 @@ func TestAppConfigObservability(t *testing.T) {
 	}
 }
 
-func TestAppConfigFieldTypeGetters(t *testing.T) {
-	const appName = "bconf_test_app"
-
-	const appDescription = "Test-App is an HTTP server providing access to weather data"
-
+func TestAppConfigStringFieldTypes(t *testing.T) {
 	appConfig := bconf.NewAppConfig(
-		appName,
-		appDescription,
+		"app",
+		"description",
 	)
 
 	_ = appConfig.SetLoaders(&bconf.EnvironmentLoader{})
 
 	stringsFieldKey := "strings"
 	stringsFieldValue := []string{"string_one", "string_two"}
+	stringsEnvValue := "string_three, string_four"
+	stringsParsedEnvValue := []string{"string_three", "string_four"}
 	stringsField := &bconf.Field{
 		Key:       stringsFieldKey,
 		FieldType: bconfconst.Strings,
 		Default:   stringsFieldValue,
 	}
 
-	intsFieldKey := "ints"
-	intsFieldValue := []int{1, 2}
-	intsField := &bconf.Field{
-		Key:       intsFieldKey,
+	herringFieldKey := "ints"
+	herringField := &bconf.Field{
+		Key:       herringFieldKey,
 		FieldType: bconfconst.Ints,
-		Default:   intsFieldValue,
 	}
 
-	boolsFieldKey := "bools"
-	boolsFieldValue := []bool{true, false}
-	boolsField := &bconf.Field{
-		Key:       boolsFieldKey,
-		FieldType: bconfconst.Bools,
-		Default:   boolsFieldValue,
-	}
+	const defaultFieldSetKey = "default"
 
-	timesFieldKey := "times"
-	timesFieldValue := []time.Time{time.Now(), time.Now().Add(-1 * time.Hour)}
-	timesField := &bconf.Field{
-		Key:       timesFieldKey,
-		FieldType: bconfconst.Times,
-		Default:   timesFieldValue,
-	}
-
-	durationsFieldKey := "durations"
-	durationsFieldValue := []time.Duration{1 * time.Minute, 1 * time.Hour}
-	durationsField := &bconf.Field{
-		Key:       durationsFieldKey,
-		FieldType: bconfconst.Durations,
-		Default:   durationsFieldValue,
-	}
-
-	defaultFieldSetKey := "default"
 	defaultFieldSet := &bconf.FieldSet{
 		Key: defaultFieldSetKey,
 		Fields: []*bconf.Field{
 			stringsField,
-			intsField,
-			boolsField,
-			timesField,
-			durationsField,
+			herringField,
 		},
 	}
+
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", defaultFieldSetKey, stringsFieldKey)), stringsEnvValue)
 
 	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) > 0 {
 		t.Fatalf("unexpected error(s) adding default field-set: %v", errs)
 	}
 
-	if _, err := appConfig.GetStrings(defaultFieldSetKey, intsFieldKey); err == nil {
+	if _, err := appConfig.GetStrings(defaultFieldSetKey, herringFieldKey); err == nil {
 		t.Fatalf("expected error getting mismatched field type")
 	}
 
@@ -541,7 +515,79 @@ func TestAppConfigFieldTypeGetters(t *testing.T) {
 		}
 	}
 
-	if _, err = appConfig.GetInts(defaultFieldSetKey, stringsFieldKey); err == nil {
+	if errs := appConfig.Register(false); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) registering app config: %v", errs)
+	}
+
+	foundStringVals, err = appConfig.GetStrings(defaultFieldSetKey, stringsFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	}
+
+	for idx, val := range foundStringVals {
+		if stringsParsedEnvValue[idx] != val {
+			t.Errorf("unexpected value found: '%s', expected '%s", val, stringsParsedEnvValue[idx])
+		}
+	}
+}
+
+func TestAppConfigIntFieldTypes(t *testing.T) {
+	appConfig := bconf.NewAppConfig(
+		"app",
+		"description",
+	)
+
+	_ = appConfig.SetLoaders(&bconf.EnvironmentLoader{})
+
+	intFieldKey := "int"
+	intFieldValue := 1
+	intEnvValue := "2"
+	intParsedEnvValue := 2
+	intField := &bconf.Field{
+		Key:       intFieldKey,
+		FieldType: bconfconst.Int,
+		Default:   intFieldValue,
+	}
+
+	intsFieldKey := "ints"
+	intsFieldValue := []int{1, 2}
+	intsEnvValue := "3, 4"
+	intsParsedEnvValue := []int{3, 4}
+	intsField := &bconf.Field{
+		Key:       intsFieldKey,
+		FieldType: bconfconst.Ints,
+		Default:   intsFieldValue,
+	}
+
+	const defaultFieldSetKey = "default"
+
+	defaultFieldSet := &bconf.FieldSet{
+		Key: defaultFieldSetKey,
+		Fields: []*bconf.Field{
+			intField,
+			intsField,
+		},
+	}
+
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", defaultFieldSetKey, intFieldKey)), intEnvValue)
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", defaultFieldSetKey, intsFieldKey)), intsEnvValue)
+
+	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding default field-set: %v", errs)
+	}
+
+	if _, err := appConfig.GetInt(defaultFieldSetKey, intsFieldKey); err == nil {
+		t.Fatalf("expected error getting mismatched field type")
+	}
+
+	foundIntVal, err := appConfig.GetInt(defaultFieldSetKey, intFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	} else if foundIntVal != intFieldValue {
+		t.Errorf("unexpected value found: '%d', expected '%d", foundIntVal, intFieldValue)
+	}
+
+	if _, err = appConfig.GetInts(defaultFieldSetKey, intFieldKey); err == nil {
 		t.Fatalf("expected error getting mismatched field type")
 	}
 
@@ -556,7 +602,86 @@ func TestAppConfigFieldTypeGetters(t *testing.T) {
 		}
 	}
 
-	if _, err = appConfig.GetBools(defaultFieldSetKey, stringsFieldKey); err == nil {
+	if errs := appConfig.Register(false); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) registering app config: %v", errs)
+	}
+
+	foundIntVal, err = appConfig.GetInt(defaultFieldSetKey, intFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	} else if foundIntVal != intParsedEnvValue {
+		t.Errorf("unexpected value found: '%d', expected '%d", foundIntVal, intParsedEnvValue)
+	}
+
+	foundIntVals, err = appConfig.GetInts(defaultFieldSetKey, intsFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	}
+
+	for idx, val := range foundIntVals {
+		if intsParsedEnvValue[idx] != val {
+			t.Errorf("unexpected value found: '%d', expected '%d", val, intsParsedEnvValue[idx])
+		}
+	}
+}
+
+func TestAppConfigBoolFieldTypes(t *testing.T) {
+	appConfig := bconf.NewAppConfig(
+		"app",
+		"description",
+	)
+
+	_ = appConfig.SetLoaders(&bconf.EnvironmentLoader{})
+
+	boolFieldKey := "bool"
+	boolFieldValue := true
+	boolEnvValue := "false"
+	boolParsedEnvValue := false
+	boolField := &bconf.Field{
+		Key:       boolFieldKey,
+		FieldType: bconfconst.Bool,
+		Default:   boolFieldValue,
+	}
+
+	boolsFieldKey := "bools"
+	boolsFieldValue := []bool{true, false}
+	boolsEnvValue := "false, true"
+	boolsParsedEnvValue := []bool{false, true}
+	boolsField := &bconf.Field{
+		Key:       boolsFieldKey,
+		FieldType: bconfconst.Bools,
+		Default:   boolsFieldValue,
+	}
+
+	const defaultFieldSetKey = "default"
+
+	defaultFieldSet := &bconf.FieldSet{
+		Key: defaultFieldSetKey,
+		Fields: []*bconf.Field{
+			boolField,
+			boolsField,
+		},
+	}
+
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", defaultFieldSetKey, boolFieldKey)), boolEnvValue)
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", defaultFieldSetKey, boolsFieldKey)), boolsEnvValue)
+
+	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding default field-set: %v", errs)
+	}
+
+	if _, err := appConfig.GetBool(defaultFieldSetKey, boolsFieldKey); err == nil {
+		t.Fatalf("expected error getting mismatched field type")
+	}
+
+	foundBoolVal, err := appConfig.GetBool(defaultFieldSetKey, boolFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	} else if foundBoolVal != boolFieldValue {
+		t.Errorf("unexpected value found: '%v', expected '%v", foundBoolVal, boolFieldValue)
+	}
+
+	if _, err = appConfig.GetBools(defaultFieldSetKey, boolFieldKey); err == nil {
 		t.Fatalf("expected error getting mismatched field type")
 	}
 
@@ -571,7 +696,190 @@ func TestAppConfigFieldTypeGetters(t *testing.T) {
 		}
 	}
 
-	if _, err = appConfig.GetTimes(defaultFieldSetKey, stringsFieldKey); err == nil {
+	if errs := appConfig.Register(false); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) registering app config: %v", errs)
+	}
+
+	foundBoolVal, err = appConfig.GetBool(defaultFieldSetKey, boolFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	} else if foundBoolVal != boolParsedEnvValue {
+		t.Errorf("unexpected value found: '%v', expected '%v", foundBoolVal, boolParsedEnvValue)
+	}
+
+	foundBoolVals, err = appConfig.GetBools(defaultFieldSetKey, boolsFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	}
+
+	for idx, val := range foundBoolVals {
+		if boolsParsedEnvValue[idx] != val {
+			t.Errorf("unexpected value found: '%v', expected '%v", val, boolsParsedEnvValue[idx])
+		}
+	}
+}
+
+func TestAppConfigDurationFieldTypes(t *testing.T) {
+	appConfig := bconf.NewAppConfig(
+		"app",
+		"description",
+	)
+
+	_ = appConfig.SetLoaders(&bconf.EnvironmentLoader{})
+
+	durationFieldKey := "duration"
+	durationFieldValue := 1 * time.Minute
+	durationEnvValue := "1h"
+	durationParsedEnvValue := 1 * time.Hour
+	durationField := &bconf.Field{
+		Key:       durationFieldKey,
+		FieldType: bconfconst.Duration,
+		Default:   durationFieldValue,
+	}
+
+	durationsFieldKey := "durations"
+	durationsFieldValue := []time.Duration{1 * time.Minute, 1 * time.Hour}
+	durationsEnvValue := "1h, 1m"
+	durationsParsedEnvValue := []time.Duration{1 * time.Hour, 1 * time.Minute}
+	durationsField := &bconf.Field{
+		Key:       durationsFieldKey,
+		FieldType: bconfconst.Durations,
+		Default:   durationsFieldValue,
+	}
+
+	const defaultFieldSetKey = "default"
+
+	defaultFieldSet := &bconf.FieldSet{
+		Key: defaultFieldSetKey,
+		Fields: []*bconf.Field{
+			durationField,
+			durationsField,
+		},
+	}
+
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", defaultFieldSetKey, durationFieldKey)), durationEnvValue)
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", defaultFieldSetKey, durationsFieldKey)), durationsEnvValue)
+
+	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding default field-set: %v", errs)
+	}
+
+	if _, err := appConfig.GetDuration(defaultFieldSetKey, durationsFieldKey); err == nil {
+		t.Fatalf("expected error getting mismatched field type")
+	}
+
+	foundDurationVal, err := appConfig.GetDuration(defaultFieldSetKey, durationFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	} else if foundDurationVal != durationFieldValue {
+		t.Errorf("unexpected value found: '%s', expected '%s", foundDurationVal.String(), durationFieldValue.String())
+	}
+
+	if _, err = appConfig.GetDurations(defaultFieldSetKey, durationFieldKey); err == nil {
+		t.Fatalf("expected error getting mismatched field type")
+	}
+
+	foundDurationVals, err := appConfig.GetDurations(defaultFieldSetKey, durationsFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	}
+
+	for idx, val := range foundDurationVals {
+		if durationsFieldValue[idx] != val {
+			t.Errorf("unexpected value found: '%s', expected '%s", val.String(), durationsFieldValue[idx].String())
+		}
+	}
+
+	if errs := appConfig.Register(false); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) registering app config: %v", errs)
+	}
+
+	foundDurationVal, err = appConfig.GetDuration(defaultFieldSetKey, durationFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	} else if foundDurationVal != durationParsedEnvValue {
+		t.Errorf(
+			"unexpected value found: '%s', expected '%s",
+			foundDurationVal.String(),
+			durationParsedEnvValue.String(),
+		)
+	}
+
+	foundDurationVals, err = appConfig.GetDurations(defaultFieldSetKey, durationsFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	}
+
+	for idx, val := range foundDurationVals {
+		if durationsParsedEnvValue[idx] != val {
+			t.Errorf("unexpected value found: '%s', expected '%s", val.String(), durationsParsedEnvValue[idx].String())
+		}
+	}
+}
+
+func TestAppConfigTimeFieldTypes(t *testing.T) {
+	appConfig := bconf.NewAppConfig(
+		"app",
+		"description",
+	)
+
+	_ = appConfig.SetLoaders(&bconf.EnvironmentLoader{})
+
+	baseTime := time.Now()
+
+	timeFieldKey := "time"
+	timeFieldValue := baseTime
+	timeEnvValue := baseTime.Add(-1 * time.Hour).Format(time.RFC3339)
+	timeParsedEnvValue := baseTime.Add(-1 * time.Hour)
+	timeField := &bconf.Field{
+		Key:       timeFieldKey,
+		FieldType: bconfconst.Time,
+		Default:   timeFieldValue,
+	}
+
+	timesFieldKey := "times"
+	timesFieldValue := []time.Time{baseTime, baseTime.Add(-1 * time.Hour)}
+	timesEnvValue := fmt.Sprintf(
+		"%s, %s",
+		baseTime.Add(-1*time.Hour).Format(time.RFC3339),
+		baseTime.Format(time.RFC3339),
+	)
+	timesParsedEnvValue := []time.Time{baseTime.Add(-1 * time.Hour), baseTime}
+	timesField := &bconf.Field{
+		Key:       timesFieldKey,
+		FieldType: bconfconst.Times,
+		Default:   timesFieldValue,
+	}
+
+	const defaultFieldSetKey = "default"
+
+	defaultFieldSet := &bconf.FieldSet{
+		Key: defaultFieldSetKey,
+		Fields: []*bconf.Field{
+			timeField,
+			timesField,
+		},
+	}
+
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", defaultFieldSetKey, timeFieldKey)), timeEnvValue)
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", defaultFieldSetKey, timesFieldKey)), timesEnvValue)
+
+	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding default field-set: %v", errs)
+	}
+
+	if _, err := appConfig.GetTime(defaultFieldSetKey, timesFieldKey); err == nil {
+		t.Fatalf("expected error getting mismatched field type")
+	}
+
+	foundTimeVal, err := appConfig.GetTime(defaultFieldSetKey, timeFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	} else if foundTimeVal != timeFieldValue {
+		t.Errorf("unexpected value found: '%s', expected '%s", foundTimeVal.String(), timeFieldValue.String())
+	}
+
+	if _, err = appConfig.GetTimes(defaultFieldSetKey, timeFieldKey); err == nil {
 		t.Fatalf("expected error getting mismatched field type")
 	}
 
@@ -586,18 +894,25 @@ func TestAppConfigFieldTypeGetters(t *testing.T) {
 		}
 	}
 
-	if _, err = appConfig.GetDurations(defaultFieldSetKey, stringsFieldKey); err == nil {
-		t.Fatalf("expected error getting mismatched field type")
+	if errs := appConfig.Register(false); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) registering app config: %v", errs)
 	}
 
-	foundDurationVals, err := appConfig.GetDurations(defaultFieldSetKey, durationsFieldKey)
+	foundTimeVal, err = appConfig.GetTime(defaultFieldSetKey, timeFieldKey)
+	if err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	} else if foundTimeVal.Format(time.RFC3339) != timeParsedEnvValue.Format(time.RFC3339) {
+		t.Errorf("unexpected value found: '%s', expected '%s", foundTimeVal.String(), timeParsedEnvValue.String())
+	}
+
+	foundTimeVals, err = appConfig.GetTimes(defaultFieldSetKey, timesFieldKey)
 	if err != nil {
 		t.Fatalf("unexpected error getting field value: %s", err)
 	}
 
-	for idx, val := range foundDurationVals {
-		if durationsFieldValue[idx] != val {
-			t.Errorf("unexpected value found: '%s', expected '%s", val.String(), durationsFieldValue[idx].String())
+	for idx, val := range foundTimeVals {
+		if timesParsedEnvValue[idx].Format(time.RFC3339) != val.Format(time.RFC3339) {
+			t.Errorf("unexpected value found: '%s', expected '%s", val.String(), timesParsedEnvValue[idx].String())
 		}
 	}
 }

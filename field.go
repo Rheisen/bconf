@@ -316,7 +316,15 @@ func (f *Field) parseString(value string) (any, error) {
 	case bconfconst.String:
 		return value, nil
 	case bconfconst.Strings:
-		return strings.Split(value, ","), nil
+		list := strings.Split(value, ",")
+		values := make([]string, len(list))
+
+		for idx, elem := range list {
+			parsedValue := strings.Trim(elem, " ")
+			values[idx] = parsedValue
+		}
+
+		return values, nil
 	case bconfconst.Bool:
 		return strconv.ParseBool(value)
 	case bconfconst.Bools:
@@ -324,7 +332,7 @@ func (f *Field) parseString(value string) (any, error) {
 		values := make([]bool, len(list))
 
 		for idx, elem := range list {
-			parsedValue, err := strconv.ParseBool(elem)
+			parsedValue, err := strconv.ParseBool(strings.Trim(elem, " "))
 			if err != nil {
 				return nil, err
 			}
@@ -340,7 +348,7 @@ func (f *Field) parseString(value string) (any, error) {
 		values := make([]int, len(list))
 
 		for idx, elem := range list {
-			parsedValue, err := strconv.Atoi(elem)
+			parsedValue, err := strconv.Atoi(strings.Trim(elem, " "))
 			if err != nil {
 				return nil, err
 			}
@@ -356,7 +364,7 @@ func (f *Field) parseString(value string) (any, error) {
 		values := make([]time.Time, len(list))
 
 		for idx, elem := range list {
-			parsedValue, err := time.Parse(time.RFC3339, elem)
+			parsedValue, err := time.Parse(time.RFC3339, strings.Trim(elem, " "))
 			if err != nil {
 				return nil, err
 			}
@@ -372,7 +380,7 @@ func (f *Field) parseString(value string) (any, error) {
 		values := make([]time.Duration, len(list))
 
 		for idx, elem := range list {
-			parsedValue, err := time.ParseDuration(elem)
+			parsedValue, err := time.ParseDuration(strings.Trim(elem, " "))
 			if err != nil {
 				return nil, err
 			}
