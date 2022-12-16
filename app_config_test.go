@@ -461,13 +461,115 @@ func TestAppConfigObservability(t *testing.T) {
 	}
 }
 
-func TestAppConfigFieldValidators(t *testing.T) {
-	appConfig := bconf.NewAppConfig(
-		"app",
-		"description",
-	)
+func TestAppConfigSetField(t *testing.T) {
+	appConfig := createBaseAppConfig()
 
-	_ = appConfig.SetLoaders(&bconf.EnvironmentLoader{})
+	const stringFieldKey = "string"
+
+	const stringFieldValue = "string_one"
+
+	stringField := &bconf.Field{
+		Key:         stringFieldKey,
+		FieldType:   bconfconst.String,
+		Default:     stringFieldValue,
+		Enumeration: []any{"string_one", "string_two", "string_three"},
+	}
+
+	const defaultFieldSetKey = "default"
+
+	defaultFieldSet := &bconf.FieldSet{
+		Key: defaultFieldSetKey,
+		Fields: []*bconf.Field{
+			stringField,
+		},
+	}
+
+	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding field-set: %v", errs)
+	}
+
+	if err := appConfig.SetField(defaultFieldSetKey, stringFieldKey, 3928482); err == nil {
+		t.Fatalf("expected error setting field to mismatched type")
+	} else if !strings.Contains(err.Error(), "invalid value field-type") {
+		t.Fatalf("unexpected error message when setting field to mismatched field-type: %s", err)
+	}
+
+	if err := appConfig.SetField(defaultFieldSetKey, stringFieldKey, "string_zero"); err == nil {
+		t.Fatalf("expected error setting field to value not in enumeration list")
+	} else if !strings.Contains(err.Error(), "value not found in enumeration list") {
+		t.Fatalf("unexpected error message when setting field to value not in enumeraiton list: %s", err)
+	}
+}
+
+func TestAppConfigReloadingFields(t *testing.T) {
+	appConfig := createBaseAppConfig()
+
+	const stringFieldKey = "string"
+
+	const stringFieldValue = "string_one"
+
+	stringField := &bconf.Field{
+		Key:       stringFieldKey,
+		FieldType: bconfconst.String,
+		Default:   stringFieldValue,
+	}
+
+	const defaultFieldSetKey = "default"
+
+	defaultFieldSet := &bconf.FieldSet{
+		Key: defaultFieldSetKey,
+		Fields: []*bconf.Field{
+			stringField,
+		},
+	}
+
+	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding field-set: %v", errs)
+	}
+
+	if errs := appConfig.LoadFieldSet(defaultFieldSetKey); len(errs) != 1 {
+		t.Fatalf("expected error loading field-set before the app-config is registered")
+	} else if !strings.Contains(errs[0].Error(), "cannot be called before the app-config has been registered") {
+		t.Fatalf("unexpected error message when loading field-set before app-config is registered: %s", errs[0])
+	}
+
+	if errs := appConfig.LoadField(defaultFieldSetKey, stringFieldKey); len(errs) != 1 {
+		t.Fatalf("expected error loading field before the app-config is registered")
+	} else if !strings.Contains(errs[0].Error(), "cannot be called before the app-config has been registered") {
+		t.Fatalf("unexpected error message when loading field before app-config is registered: %s", errs[0])
+	}
+
+	if errs := appConfig.Register(false); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) registering app-config: %v", errs)
+	}
+
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", defaultFieldSetKey, stringFieldKey)), "string_two")
+
+	if errs := appConfig.LoadFieldSet(defaultFieldSetKey); len(errs) > 0 {
+		t.Fatalf("unexpected errors loading field-set: %v", errs)
+	}
+
+	if val, err := appConfig.GetString(defaultFieldSetKey, stringFieldKey); err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	} else if val != "string_two" {
+		t.Fatalf("unexpected field value: '%s'", val)
+	}
+
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", defaultFieldSetKey, stringFieldKey)), "string_three")
+
+	if errs := appConfig.LoadField(defaultFieldSetKey, stringFieldKey); len(errs) > 0 {
+		t.Fatalf("unexpected errors loading field: %v", errs)
+	}
+
+	if val, err := appConfig.GetString(defaultFieldSetKey, stringFieldKey); err != nil {
+		t.Fatalf("unexpected error getting field value: %s", err)
+	} else if val != "string_three" {
+		t.Fatalf("unexpected field value: '%s'", val)
+	}
+}
+
+func TestAppConfigFieldValidators(t *testing.T) {
+	appConfig := createBaseAppConfig()
 
 	const stringFieldKey = "string"
 
@@ -1038,4 +1140,15 @@ func TestAppConfigTimeFieldTypes(t *testing.T) {
 			t.Errorf("unexpected value found: '%s', expected '%s", val.String(), timesParsedEnvValue[idx].String())
 		}
 	}
+}
+
+func createBaseAppConfig() *bconf.AppConfig {
+	appConfig := bconf.NewAppConfig(
+		"app",
+		"description",
+	)
+
+	_ = appConfig.SetLoaders(&bconf.EnvironmentLoader{})
+
+	return appConfig
 }
