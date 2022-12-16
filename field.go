@@ -316,82 +316,102 @@ func (f *Field) parseString(value string) (any, error) {
 	case bconfconst.String:
 		return value, nil
 	case bconfconst.Strings:
-		list := strings.Split(value, ",")
-		values := make([]string, len(list))
-
-		for idx, elem := range list {
-			parsedValue := strings.Trim(elem, " ")
-			values[idx] = parsedValue
-		}
-
-		return values, nil
+		return f.parseToStrings(value), nil
 	case bconfconst.Bool:
 		return strconv.ParseBool(value)
 	case bconfconst.Bools:
-		list := strings.Split(value, ",")
-		values := make([]bool, len(list))
-
-		for idx, elem := range list {
-			parsedValue, err := strconv.ParseBool(strings.Trim(elem, " "))
-			if err != nil {
-				return nil, err
-			}
-
-			values[idx] = parsedValue
-		}
-
-		return values, nil
+		return f.parseToBools(value)
 	case bconfconst.Int:
 		return strconv.Atoi(value)
 	case bconfconst.Ints:
-		list := strings.Split(value, ",")
-		values := make([]int, len(list))
-
-		for idx, elem := range list {
-			parsedValue, err := strconv.Atoi(strings.Trim(elem, " "))
-			if err != nil {
-				return nil, err
-			}
-
-			values[idx] = parsedValue
-		}
-
-		return values, nil
+		return f.parseToInts(value)
 	case bconfconst.Time:
 		return time.Parse(time.RFC3339, value)
 	case bconfconst.Times:
-		list := strings.Split(value, ",")
-		values := make([]time.Time, len(list))
-
-		for idx, elem := range list {
-			parsedValue, err := time.Parse(time.RFC3339, strings.Trim(elem, " "))
-			if err != nil {
-				return nil, err
-			}
-
-			values[idx] = parsedValue
-		}
-
-		return values, nil
+		return f.parseToTimes(value)
 	case bconfconst.Duration:
 		return time.ParseDuration(value)
 	case bconfconst.Durations:
-		list := strings.Split(value, ",")
-		values := make([]time.Duration, len(list))
-
-		for idx, elem := range list {
-			parsedValue, err := time.ParseDuration(strings.Trim(elem, " "))
-			if err != nil {
-				return nil, err
-			}
-
-			values[idx] = parsedValue
-		}
-
-		return values, nil
+		return f.parseToDurations(value)
 	default:
 		return "", fmt.Errorf("unsupported field type: %s", f.FieldType)
 	}
+}
+
+func (f *Field) parseToStrings(value string) []string {
+	list := strings.Split(value, ",")
+	values := make([]string, len(list))
+
+	for idx, elem := range list {
+		parsedValue := strings.Trim(elem, " ")
+		values[idx] = parsedValue
+	}
+
+	return values
+}
+
+func (f *Field) parseToBools(value string) ([]bool, error) {
+	list := strings.Split(value, ",")
+	values := make([]bool, len(list))
+
+	for idx, elem := range list {
+		parsedValue, err := strconv.ParseBool(strings.Trim(elem, " "))
+		if err != nil {
+			return nil, err
+		}
+
+		values[idx] = parsedValue
+	}
+
+	return values, nil
+}
+
+func (f *Field) parseToInts(value string) ([]int, error) {
+	list := strings.Split(value, ",")
+	values := make([]int, len(list))
+
+	for idx, elem := range list {
+		parsedValue, err := strconv.Atoi(strings.Trim(elem, " "))
+		if err != nil {
+			return nil, err
+		}
+
+		values[idx] = parsedValue
+	}
+
+	return values, nil
+}
+
+func (f *Field) parseToTimes(value string) ([]time.Time, error) {
+	list := strings.Split(value, ",")
+	values := make([]time.Time, len(list))
+
+	for idx, elem := range list {
+		parsedValue, err := time.Parse(time.RFC3339, strings.Trim(elem, " "))
+		if err != nil {
+			return nil, err
+		}
+
+		values[idx] = parsedValue
+	}
+
+	return values, nil
+}
+
+func (f *Field) parseToDurations(value string) ([]time.Duration, error) {
+	list := strings.Split(value, ",")
+	values := make([]time.Duration, len(list))
+
+	for idx, elem := range list {
+		parsedValue, err := time.ParseDuration(strings.Trim(elem, " "))
+		if err != nil {
+			return nil, err
+		}
+
+		values[idx] = parsedValue
+	}
+
+	return values, nil
 }
 
 func (f *Field) valueInEnumeration(value any) bool {

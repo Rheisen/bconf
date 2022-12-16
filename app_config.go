@@ -262,59 +262,7 @@ func (c *AppConfig) HelpString() string {
 		builder.WriteString(fmt.Sprintf("%s\n\n", c.appDescription))
 	}
 
-	fields := c.fields()
-	if len(fields) > 0 {
-		keys := make([]string, len(fields))
-		idx := 0
-
-		for key := range fields {
-			keys[idx] = key
-			idx++
-		}
-
-		sort.Strings(keys)
-
-		conditionallyRequiredFields := []string{}
-		requiredFields := []string{}
-		optionalFields := []string{}
-
-		for _, key := range keys {
-			fieldEntry := fields[key]
-
-			switch {
-			case fieldEntry.field.Required && fieldEntry.loadConditions == nil:
-				requiredFields = append(requiredFields, key)
-			case fieldEntry.field.Required && fieldEntry.loadConditions != nil:
-				conditionallyRequiredFields = append(conditionallyRequiredFields, key)
-			default:
-				optionalFields = append(optionalFields, key)
-			}
-		}
-
-		if len(requiredFields) > 0 {
-			builder.WriteString("Required Configuration:\n")
-
-			for _, key := range requiredFields {
-				builder.WriteString(fmt.Sprintf("\t%s", c.fieldHelpString(fields, key)))
-			}
-		}
-
-		if len(conditionallyRequiredFields) > 0 {
-			builder.WriteString("Conditionally Required Configuration:\n")
-
-			for _, key := range conditionallyRequiredFields {
-				builder.WriteString(fmt.Sprintf("\t%s", c.fieldHelpString(fields, key)))
-			}
-		}
-
-		if len(optionalFields) > 0 {
-			builder.WriteString("Optional Configuration:\n")
-
-			for _, key := range optionalFields {
-				builder.WriteString(fmt.Sprintf("\t%s", c.fieldHelpString(fields, key)))
-			}
-		}
-	}
+	c.addFieldsToBuilder(&builder)
 
 	return builder.String()
 }
@@ -545,7 +493,9 @@ func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
 		}
 	}
 
-	if !loadFieldSet {
+	if load, err := c.shouldLoadFieldSet(fieldSet); err != nil {
+		return append(errs, err)
+	} else if !load {
 		return errs
 	}
 
@@ -569,6 +519,36 @@ func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
 	}
 
 	return errs
+}
+
+func (c *AppConfig) shouldLoadFieldSet(fieldSet *FieldSet) (bool, error) {
+	loadFieldSet := true
+
+	if len(fieldSet.LoadConditions) > 0 {
+		for _, loadCondition := range fieldSet.LoadConditions {
+			if !loadFieldSet {
+				break
+			}
+
+			conditionFieldSetKey, conditionFieldSetFieldKey := loadCondition.FieldDependency()
+			if conditionFieldSetKey != "" && conditionFieldSetFieldKey != "" {
+				fieldValue, err := c.getFieldValue(conditionFieldSetKey, conditionFieldSetFieldKey, "any")
+				if err != nil {
+					return false, fmt.Errorf("problem getting field value for load condition: %w", err)
+				}
+
+				loadFieldSet = loadCondition.Load(fieldValue)
+
+				continue
+			}
+
+			loadFieldSet = loadCondition.Load(nil)
+
+			continue
+		}
+	}
+
+	return loadFieldSet, nil
 }
 
 func (c *AppConfig) getFieldValue(fieldSetKey, fieldKey, expectedType string) (any, error) {
@@ -610,6 +590,62 @@ func (c *AppConfig) fields() map[string]*fieldEntry {
 	}
 
 	return fields
+}
+
+func (c *AppConfig) addFieldsToBuilder(builder *strings.Builder) {
+	fields := c.fields()
+	if len(fields) > 0 {
+		keys := make([]string, len(fields))
+		idx := 0
+
+		for key := range fields {
+			keys[idx] = key
+			idx++
+		}
+
+		sort.Strings(keys)
+
+		conditionallyRequiredFields := []string{}
+		requiredFields := []string{}
+		optionalFields := []string{}
+
+		for _, key := range keys {
+			fieldEntry := fields[key]
+
+			switch {
+			case fieldEntry.field.Required && fieldEntry.loadConditions == nil:
+				requiredFields = append(requiredFields, key)
+			case fieldEntry.field.Required && fieldEntry.loadConditions != nil:
+				conditionallyRequiredFields = append(conditionallyRequiredFields, key)
+			default:
+				optionalFields = append(optionalFields, key)
+			}
+		}
+
+		if len(requiredFields) > 0 {
+			builder.WriteString("Required Configuration:\n")
+
+			for _, key := range requiredFields {
+				builder.WriteString(fmt.Sprintf("\t%s", c.fieldHelpString(fields, key)))
+			}
+		}
+
+		if len(conditionallyRequiredFields) > 0 {
+			builder.WriteString("Conditionally Required Configuration:\n")
+
+			for _, key := range conditionallyRequiredFields {
+				builder.WriteString(fmt.Sprintf("\t%s", c.fieldHelpString(fields, key)))
+			}
+		}
+
+		if len(optionalFields) > 0 {
+			builder.WriteString("Optional Configuration:\n")
+
+			for _, key := range optionalFields {
+				builder.WriteString(fmt.Sprintf("\t%s", c.fieldHelpString(fields, key)))
+			}
+		}
+	}
 }
 
 func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) string {
