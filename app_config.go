@@ -646,10 +646,10 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) s
 
 	if field.Default != nil && field.Sensitive {
 		builder.WriteString(spaceBuffer)
-		builder.WriteString(fmt.Sprintf("Default value: '%v'\n", field.Default))
+		builder.WriteString("Default value: '<sensitive-value>'\n")
 	} else if field.Default != nil {
 		builder.WriteString(spaceBuffer)
-		builder.WriteString("Default value: '<sensitive-value>'")
+		builder.WriteString(fmt.Sprintf("Default value: '%v'\n", field.Default))
 	}
 
 	if field.DefaultGenerator != nil {
