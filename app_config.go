@@ -465,34 +465,6 @@ func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
 		return errs
 	}
 
-	// Check field set load conditions
-	loadFieldSet := true
-
-	if len(fieldSet.LoadConditions) > 0 {
-		for _, loadCondition := range fieldSet.LoadConditions {
-			if !loadFieldSet {
-				break
-			}
-
-			conditionFieldSetKey, conditionFieldSetFieldKey := loadCondition.FieldDependency()
-			if conditionFieldSetKey != "" && conditionFieldSetFieldKey != "" {
-				fieldValue, err := c.getFieldValue(conditionFieldSetKey, conditionFieldSetFieldKey, "any")
-				if err != nil {
-					errs = append(errs, fmt.Errorf("problem getting field value for load condition: %w", err))
-					return errs
-				}
-
-				loadFieldSet = loadCondition.Load(fieldValue)
-
-				continue
-			}
-
-			loadFieldSet = loadCondition.Load(nil)
-
-			continue
-		}
-	}
-
 	if load, err := c.shouldLoadFieldSet(fieldSet); err != nil {
 		return append(errs, err)
 	} else if !load {
