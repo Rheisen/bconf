@@ -12,6 +12,85 @@ import (
 	"github.com/rheisen/bconf/bconfconst"
 )
 
+func TestAppConfigHelpString(t *testing.T) {
+	appConfig := createBaseAppConfig()
+
+	const stringFieldKey = "string"
+
+	stringField := &bconf.Field{
+		Key:         stringFieldKey,
+		FieldType:   bconfconst.String,
+		Description: "string field description",
+		DefaultGenerator: func() (any, error) {
+			return "some_value", nil
+		},
+		Enumeration: []any{"some_value", "other_value", "another_value"},
+	}
+
+	const secretStringFieldKey = "string_secret"
+
+	secretStringField := &bconf.Field{
+		Key:       secretStringFieldKey,
+		FieldType: bconfconst.String,
+		Sensitive: true,
+		Default:   "some-super-secret-value",
+		Validator: func(fieldValue any) error {
+			return nil
+		},
+	}
+
+	const intFieldKey = "int"
+
+	intField := &bconf.Field{
+		Key:       intFieldKey,
+		FieldType: bconfconst.Int,
+		Required:  true,
+	}
+
+	const durationFieldKey = "duration"
+
+	durationField := &bconf.Field{
+		Key:       durationFieldKey,
+		FieldType: bconfconst.Duration,
+		Required:  true,
+	}
+
+	const defaultFieldSetKey = "default"
+
+	defaultFieldSet := &bconf.FieldSet{
+		Key:    defaultFieldSetKey,
+		Fields: []*bconf.Field{stringField, secretStringField, intField},
+	}
+
+	const conditionalFieldSetKey = "conditional"
+
+	conditionalFieldSet := &bconf.FieldSet{
+		Key:    conditionalFieldSetKey,
+		Fields: []*bconf.Field{durationField},
+		LoadConditions: []bconf.LoadCondition{
+			&bconf.FieldCondition{
+				FieldSetKey: defaultFieldSetKey,
+				FieldKey:    stringFieldKey,
+				Condition: func(fieldValue any) bool {
+					val, _ := fieldValue.(string)
+
+					return val == "some_value"
+				},
+			},
+		},
+	}
+
+	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) > 0 {
+		t.Fatalf("unexpected errors adding field-set: %v", errs)
+	}
+
+	if errs := appConfig.AddFieldSet(conditionalFieldSet); len(errs) > 0 {
+		t.Fatalf("unexpected errors adding conditional field-set: %v", errs)
+	}
+
+	t.Log(appConfig.HelpString())
+}
+
 func TestAppConfig(t *testing.T) {
 	const appName = "bconf_test_app"
 
@@ -106,8 +185,6 @@ func TestAppConfig(t *testing.T) {
 		t.Fatalf("unexpected errors adding conditional field-set: %v", errs)
 	}
 
-	t.Log(appConfig.HelpString())
-
 	if errs := appConfig.Register(false); len(errs) < 1 {
 		t.Fatalf("errors expected for unset required fields")
 	}
@@ -116,50 +193,6 @@ func TestAppConfig(t *testing.T) {
 
 	if errs := appConfig.Register(false); len(errs) > 0 {
 		t.Fatalf("unexpected errors registering application configuration: %v", errs)
-	}
-
-	appID, err := appConfig.GetString("app", "id")
-	if err != nil {
-		t.Fatalf("unexpected error getting app_id field: %s", err)
-	}
-
-	if appID != appGeneratedID {
-		t.Fatalf("unexected app_id value, found: '%s'", appID)
-	}
-
-	readTimeout, err := appConfig.GetDuration("app", "read_timeout")
-	if err != nil {
-		t.Fatalf("unexpected error getting app_read_timeout field: %s", err)
-	}
-
-	if readTimeout != 5*time.Second {
-		t.Fatalf("unexpected app_read_timeout value, found: '%d ms'", readTimeout.Milliseconds())
-	}
-
-	os.Setenv("BCONF_TEST_APP_ID", "environment-loaded-app-id")
-
-	appConfig.LoadField("app", "id")
-
-	appID, err = appConfig.GetString("app", "id")
-	if err != nil {
-		t.Fatalf("unexpected error getting app_id field: %s", err)
-	}
-
-	if appID != "environment-loaded-app-id" {
-		t.Fatalf("unexected app_id value, found: '%s'", appID)
-	}
-
-	if err = appConfig.SetField("app", "id", "user-override-value"); err != nil {
-		t.Fatalf("unexpected error setting app id value: %s", err)
-	}
-
-	appID, err = appConfig.GetString("app", "id")
-	if err != nil {
-		t.Fatalf("unexpected error getting app_id field: %s", err)
-	}
-
-	if appID != "user-override-value" {
-		t.Fatalf("unexected app_id value, found: '%s'", appID)
 	}
 }
 
@@ -364,16 +397,7 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 }
 
 func TestAppConfigObservability(t *testing.T) {
-	const appName = "bconf_test_app"
-
-	const appDescription = "Test-App is an HTTP server providing access to weather data"
-
-	appConfig := bconf.NewAppConfig(
-		appName,
-		appDescription,
-	)
-
-	_ = appConfig.SetLoaders(&bconf.EnvironmentLoader{})
+	appConfig := createBaseAppConfig()
 
 	idFieldKey := "id"
 	idFieldGeneratedDefaultValue := "generated-default-value"
@@ -484,6 +508,12 @@ func TestAppConfigSetField(t *testing.T) {
 		},
 	}
 
+	if err := appConfig.SetField(defaultFieldSetKey, stringFieldKey, "some_val"); err == nil {
+		t.Fatalf("expected error setting field when field-set is not present")
+	} else if !strings.Contains(err.Error(), fmt.Sprintf("field-set with key '%s' not found", defaultFieldSetKey)) {
+		t.Fatalf("unexpected error message: %s", err.Error())
+	}
+
 	if errs := appConfig.AddFieldSet(defaultFieldSet); len(errs) > 0 {
 		t.Fatalf("unexpected error(s) adding field-set: %v", errs)
 	}
@@ -498,6 +528,12 @@ func TestAppConfigSetField(t *testing.T) {
 		t.Fatalf("expected error setting field to value not in enumeration list")
 	} else if !strings.Contains(err.Error(), "value not found in enumeration list") {
 		t.Fatalf("unexpected error message when setting field to value not in enumeraiton list: %s", err)
+	}
+
+	if err := appConfig.SetField(defaultFieldSetKey, "some_key", "some_val"); err == nil {
+		t.Fatalf("expected error setting field when field is not present")
+	} else if !strings.Contains(err.Error(), "field with key") {
+		t.Fatalf("unexpected error message: %s", err.Error())
 	}
 }
 
