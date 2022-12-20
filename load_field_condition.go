@@ -3,7 +3,7 @@ package bconf
 import "fmt"
 
 type FieldCondition struct {
-	Condition   func(fieldValue any) bool
+	Condition   func(fieldValue any) (bool, error)
 	FieldSetKey string
 	FieldKey    string
 }
@@ -18,7 +18,7 @@ func (c *FieldCondition) FieldDependency() (fieldSetKey, fieldKey string) {
 	return c.FieldSetKey, c.FieldKey
 }
 
-func (c *FieldCondition) Load(value any) bool {
+func (c *FieldCondition) Load(value any) (bool, error) {
 	return c.Condition(value)
 }
 

@@ -2,11 +2,13 @@ package bconf
 
 import "fmt"
 
+type FieldSets []*FieldSet
+
 type FieldSet struct {
 	fieldMap       map[string]*Field
 	Key            string
 	LoadConditions []LoadCondition
-	Fields         []*Field
+	Fields         Fields
 }
 
 func (f *FieldSet) Clone() *FieldSet {
@@ -32,8 +34,8 @@ func (f *FieldSet) Clone() *FieldSet {
 		clone.fieldMap = make(map[string]*Field, len(f.fieldMap))
 
 		for key, field := range f.fieldMap {
-			newField := *field
-			clone.fieldMap[key] = &newField
+			newField := field.Clone()
+			clone.fieldMap[key] = newField
 		}
 	}
 

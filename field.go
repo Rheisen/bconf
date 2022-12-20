@@ -10,6 +10,8 @@ import (
 	"github.com/rheisen/bconf/bconfconst"
 )
 
+type Fields []*Field
+
 type Field struct {
 	// fieldValue contains a mapping of loader names to field value.
 	fieldValue map[string]any
@@ -37,6 +39,26 @@ type Field struct {
 	Required bool
 	// Sensitive identifies the field value as sensitive.
 	Sensitive bool
+}
+
+func (f *Field) Clone() *Field {
+	clone := *f
+
+	clone.fieldFound = make([]string, len(f.fieldFound))
+	copy(clone.fieldFound, f.fieldFound)
+
+	clone.Enumeration = make([]any, len(f.Enumeration))
+	copy(clone.Enumeration, f.Enumeration)
+
+	if len(f.fieldValue) > 0 {
+		clone.fieldValue = make(map[string]any, len(f.fieldValue))
+
+		for key, value := range f.fieldValue {
+			clone.fieldValue[key] = value
+		}
+	}
+
+	return &clone
 }
 
 func (f *Field) generateDefault() error {
@@ -78,14 +100,8 @@ func (f *Field) validate() []error {
 
 		fieldTypeFound = true
 
-		// Check that default and default generator are not both set
-		if f.Default != nil && f.DefaultGenerator != nil {
-			errs = append(errs, fmt.Errorf(bconfconst.ErrorFieldDefaultSetting))
-		}
-
-		// Check that required and default are not both set
-		if f.Required && f.Default != nil || f.Required && f.DefaultGenerator != nil {
-			errs = append(errs, fmt.Errorf(bconfconst.ErrorFieldRequiredWithDefault))
+		if fieldErrors := f.validateNoConflictingParams(); len(fieldErrors) > 0 {
+			errs = append(errs, fieldErrors...)
 		}
 
 		if err := f.validateDefaultFieldType(fieldType); err != nil {
@@ -116,6 +132,20 @@ func (f *Field) validate() []error {
 
 	if !fieldTypeFound {
 		errs = append(errs, fmt.Errorf("invalid field type specified: '%s'", f.FieldType))
+	}
+
+	return errs
+}
+
+func (f *Field) validateNoConflictingParams() []error {
+	errs := []error{}
+
+	if f.Default != nil && f.DefaultGenerator != nil {
+		errs = append(errs, fmt.Errorf(bconfconst.ErrorFieldDefaultSetting))
+	}
+
+	if f.Required && f.Default != nil || f.Required && f.DefaultGenerator != nil {
+		errs = append(errs, fmt.Errorf(bconfconst.ErrorFieldRequiredWithDefault))
 	}
 
 	return errs

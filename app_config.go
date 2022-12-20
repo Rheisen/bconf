@@ -16,7 +16,7 @@ func NewAppConfig(appName, appDescription string) *AppConfig {
 		appName:          appName,
 		appDescription:   appDescription,
 		fieldSets:        map[string]*FieldSet{},
-		orderedFieldSets: []*FieldSet{},
+		orderedFieldSets: FieldSets{},
 		loaders:          []Loader{},
 	}
 }
@@ -26,7 +26,7 @@ type AppConfig struct {
 	appName          string
 	appDescription   string
 	loaders          []Loader
-	orderedFieldSets []*FieldSet
+	orderedFieldSets FieldSets
 	fieldSetLock     sync.Mutex
 	register         sync.Once
 	registered       bool
@@ -67,103 +67,61 @@ func (c *AppConfig) SetLoaders(loaders ...Loader) []error {
 }
 
 func (c *AppConfig) AddFieldSet(fieldSet *FieldSet) []error {
+	return c.addFieldSet(fieldSet, true)
+}
+
+func (c *AppConfig) AddFieldSets(fieldSets ...*FieldSet) []error {
 	c.fieldSetLock.Lock()
 	defer c.fieldSetLock.Unlock()
 
 	errs := []error{}
-	fieldSet = fieldSet.Clone()
+	addedFieldSets := []string{}
 
-	// check for field set structural integrity
-	if fieldSetErrs := fieldSet.validate(); len(fieldSetErrs) > 0 {
-		for _, err := range fieldSetErrs {
-			errs = append(errs, fmt.Errorf("field-set '%s' validation error: %w", fieldSet.Key, err))
-		}
-
-		return errs
-	}
-
-	// check that field set load conditions are all present
-	for _, loadCondition := range fieldSet.LoadConditions {
-		fieldSetKey, fieldKey := loadCondition.FieldDependency()
-		if fieldSetKey == "" && fieldKey == "" {
+	for _, fieldSet := range fieldSets {
+		if fieldSetErrs := c.addFieldSet(fieldSet, false); len(fieldSetErrs) > 0 {
+			errs = append(errs, fieldSetErrs...)
 			continue
 		}
 
-		fieldSetDependency, found := c.fieldSets[fieldSetKey]
-		if !found {
-			errs = append(
-				errs,
-				fmt.Errorf("field-set '%s' field-set dependency not found: %s", fieldSet.Key, fieldSetKey),
-			)
-
-			continue
-		}
-
-		_, found = fieldSetDependency.fieldMap[fieldKey]
-		if !found {
-			errs = append(
-				errs,
-				fmt.Errorf(
-					"field-set '%s' field-set dependency field not found: %s_%s",
-					fieldSet.Key, fieldSetKey, fieldKey,
-				),
-			)
-		}
+		addedFieldSets = append(addedFieldSets, fieldSet.Key)
 	}
 
 	if len(errs) > 0 {
-		return errs
-	}
-
-	fieldSet.initializeFieldMap()
-
-	// generate field-set field default values
-	if fieldSetErrs := fieldSet.generateFieldDefaults(); len(fieldSetErrs) > 0 {
-		for _, err := range fieldSetErrs {
-			errs = append(
-				errs,
-				fmt.Errorf("field-set '%s' field default value generation error: %w", fieldSet.Key, err),
-			)
+		for _, fieldSetKey := range addedFieldSets {
+			delete(c.fieldSets, fieldSetKey)
 		}
 
-		return errs
+		c.orderedFieldSets = c.orderedFieldSets[:len(c.orderedFieldSets)-len(addedFieldSets)]
 	}
 
-	// validate field-set fields
-	if fieldSetErrs := fieldSet.validateFields(); len(fieldSetErrs) > 0 {
-		for _, err := range fieldSetErrs {
-			errs = append(
-				errs,
-				fmt.Errorf("field-set '%s' field validation error: %w", fieldSet.Key, err),
-			)
-		}
-
-		return errs
-	}
-
-	if _, keyFound := c.fieldSets[fieldSet.Key]; keyFound {
-		errs = append(
-			errs,
-			fmt.Errorf("duplicate field-set key found: '%s'", fieldSet.Key),
-		)
-
-		return errs
-	}
-
-	c.fieldSets[fieldSet.Key] = fieldSet
-	c.orderedFieldSets = append(c.orderedFieldSets, fieldSet)
-
-	return nil
+	return errs
 }
 
 func (c *AppConfig) AddField(fieldSetKey string, field *Field) []error {
 	c.fieldSetLock.Lock()
 	defer c.fieldSetLock.Unlock()
 
-	errs := []error{}
-	errs = append(errs, fmt.Errorf("AddField not implemented"))
+	if _, keyFound := c.fieldSets[fieldSetKey]; !keyFound {
+		return []error{fmt.Errorf("no field-set found with key '%s'", fieldSetKey)}
+	}
 
-	return errs
+	if _, keyFound := c.fieldSets[fieldSetKey].fieldMap[field.Key]; keyFound {
+		return []error{fmt.Errorf("duplicate field key found: '%s'", field.Key)}
+	}
+
+	field = field.Clone()
+
+	if err := field.generateDefault(); err != nil {
+		return []error{fmt.Errorf("field default value generation error: %w", err)}
+	}
+
+	if validationErrors := field.validate(); len(validationErrors) > 0 {
+		return validationErrors
+	}
+
+	c.fieldSets[fieldSetKey].fieldMap[field.Key] = field
+
+	return nil
 }
 
 func (c *AppConfig) LoadFieldSet(fieldSetKey string) []error {
@@ -456,6 +414,118 @@ func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration,
 
 // -- Private methods --
 
+func (c *AppConfig) addFieldSet(fieldSet *FieldSet, lock bool) []error {
+	if lock {
+		c.fieldSetLock.Lock()
+		defer c.fieldSetLock.Unlock()
+	}
+
+	fieldSet = fieldSet.Clone()
+
+	if errs := c.checkForFieldSetStructuralIntegrity(fieldSet); len(errs) > 0 {
+		return errs
+	}
+
+	if _, keyFound := c.fieldSets[fieldSet.Key]; keyFound {
+		return []error{fmt.Errorf("duplicate field-set key found: '%s'", fieldSet.Key)}
+	}
+
+	if errs := c.checkForFieldSetDependencies(fieldSet); len(errs) > 0 {
+		return errs
+	}
+
+	fieldSet.initializeFieldMap()
+
+	if errs := c.generateFieldSetDefaultValues(fieldSet); len(errs) > 0 {
+		return errs
+	}
+
+	if errs := c.checkForFieldSetFieldsValidity(fieldSet); len(errs) > 0 {
+		return errs
+	}
+
+	c.fieldSets[fieldSet.Key] = fieldSet
+	c.orderedFieldSets = append(c.orderedFieldSets, fieldSet)
+
+	return nil
+}
+
+func (c *AppConfig) checkForFieldSetStructuralIntegrity(fieldSet *FieldSet) []error {
+	errs := []error{}
+
+	if fieldSetErrs := fieldSet.validate(); len(fieldSetErrs) > 0 {
+		for _, err := range fieldSetErrs {
+			errs = append(errs, fmt.Errorf("field-set '%s' validation error: %w", fieldSet.Key, err))
+		}
+	}
+
+	return errs
+}
+
+func (c *AppConfig) checkForFieldSetDependencies(fieldSet *FieldSet) []error {
+	errs := []error{}
+
+	for _, loadCondition := range fieldSet.LoadConditions {
+		fieldSetKey, fieldKey := loadCondition.FieldDependency()
+		if fieldSetKey == "" && fieldKey == "" {
+			continue
+		}
+
+		fieldSetDependency, found := c.fieldSets[fieldSetKey]
+		if !found {
+			errs = append(
+				errs,
+				fmt.Errorf("field-set '%s' field-set dependency not found: %s", fieldSet.Key, fieldSetKey),
+			)
+
+			continue
+		}
+
+		_, found = fieldSetDependency.fieldMap[fieldKey]
+		if !found {
+			errs = append(
+				errs,
+				fmt.Errorf(
+					"field-set '%s' field-set dependency field not found: %s_%s",
+					fieldSet.Key, fieldSetKey, fieldKey,
+				),
+			)
+		}
+	}
+
+	return errs
+}
+
+func (c *AppConfig) generateFieldSetDefaultValues(fieldSet *FieldSet) []error {
+	errs := []error{}
+
+	if fieldSetErrs := fieldSet.generateFieldDefaults(); len(fieldSetErrs) > 0 {
+		for _, err := range fieldSetErrs {
+			errs = append(
+				errs,
+				fmt.Errorf("field-set '%s' field default value generation error: %w", fieldSet.Key, err),
+			)
+		}
+	}
+
+	return errs
+}
+
+func (c *AppConfig) checkForFieldSetFieldsValidity(fieldSet *FieldSet) []error {
+	errs := []error{}
+
+	if fieldSetErrs := fieldSet.validateFields(); len(fieldSetErrs) > 0 {
+		for _, err := range fieldSetErrs {
+			errs = append(
+				errs,
+				fmt.Errorf("field-set '%s' field validation error: %w", fieldSet.Key, err),
+			)
+		}
+	}
+
+	return errs
+}
+
 func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
 	errs := []error{}
 
@@ -509,12 +579,20 @@ func (c *AppConfig) shouldLoadFieldSet(fieldSet *FieldSet) (bool, error) {
 					return false, fmt.Errorf("problem getting field value for load condition: %w", err)
 				}
 
-				loadFieldSet = loadCondition.Load(fieldValue)
+				loadFieldSet, err = loadCondition.Load(fieldValue)
+				if err != nil {
+					return false, fmt.Errorf("problem getting load condition outcome: %w", err)
+				}
 
 				continue
 			}
 
-			loadFieldSet = loadCondition.Load(nil)
+			var err error
+
+			loadFieldSet, err = loadCondition.Load(nil)
+			if err != nil {
+				return false, fmt.Errorf("problem getting load condition outcome: %w", err)
+			}
 
 			continue
 		}

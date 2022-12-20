@@ -59,22 +59,25 @@ func TestAppConfigHelpString(t *testing.T) {
 
 	defaultFieldSet := &bconf.FieldSet{
 		Key:    defaultFieldSetKey,
-		Fields: []*bconf.Field{stringField, secretStringField, intField},
+		Fields: bconf.Fields{stringField, secretStringField, intField},
 	}
 
 	const conditionalFieldSetKey = "conditional"
 
 	conditionalFieldSet := &bconf.FieldSet{
 		Key:    conditionalFieldSetKey,
-		Fields: []*bconf.Field{durationField},
+		Fields: bconf.Fields{durationField},
 		LoadConditions: []bconf.LoadCondition{
 			&bconf.FieldCondition{
 				FieldSetKey: defaultFieldSetKey,
 				FieldKey:    stringFieldKey,
-				Condition: func(fieldValue any) bool {
-					val, _ := fieldValue.(string)
+				Condition: func(fieldValue any) (bool, error) {
+					val, ok := fieldValue.(string)
+					if !ok {
+						return false, fmt.Errorf("unexpected field value type")
+					}
 
-					return val == "some_value"
+					return val == "some_value", nil
 				},
 			},
 		},
@@ -121,7 +124,7 @@ func TestAppConfig(t *testing.T) {
 
 	appFieldSet := &bconf.FieldSet{
 		Key: "app",
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			{
 				Key:         "id",
 				FieldType:   bconfconst.String,
@@ -146,7 +149,7 @@ func TestAppConfig(t *testing.T) {
 
 	conditionalFieldSet := &bconf.FieldSet{
 		Key: "sqlite",
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			{
 				Key:       "server",
 				FieldType: bconfconst.String,
@@ -157,13 +160,13 @@ func TestAppConfig(t *testing.T) {
 			&bconf.FieldCondition{
 				FieldSetKey: "app",
 				FieldKey:    "connect_sqlite",
-				Condition: func(fieldValue any) bool {
+				Condition: func(fieldValue any) (bool, error) {
 					val, ok := fieldValue.(bool)
 					if !ok {
-						t.Fatalf("unexpected field-type value")
+						return false, fmt.Errorf("unexpected field-type value")
 					}
 
-					return val
+					return val, nil
 				},
 			},
 		},
@@ -241,7 +244,7 @@ func TestBadAppConfigFields(t *testing.T) {
 
 	invalidAppFieldSet := &bconf.FieldSet{
 		Key: "app",
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			idFieldInvalidDefaultGenerator,
 			readTimeoutFieldInvalidDefault,
 		},
@@ -253,7 +256,7 @@ func TestBadAppConfigFields(t *testing.T) {
 
 	fieldSetWithEmptyField := &bconf.FieldSet{
 		Key: "default",
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			{},
 		},
 	}
@@ -287,20 +290,20 @@ func TestBadAppConfigFields(t *testing.T) {
 
 	fieldSetWithInvalidField := &bconf.FieldSet{
 		Key:    "default",
-		Fields: []*bconf.Field{fieldWithDefaultAndRequiredSet},
+		Fields: bconf.Fields{fieldWithDefaultAndRequiredSet},
 	}
 
 	if errs := appConfig.AddFieldSet(fieldSetWithInvalidField); len(errs) < 1 {
 		t.Fatalf("expected an error adding field with default and required set")
 	}
 
-	fieldSetWithInvalidField.Fields = []*bconf.Field{fieldWithDefaultNotInEnumeration}
+	fieldSetWithInvalidField.Fields = bconf.Fields{fieldWithDefaultNotInEnumeration}
 
 	if errs := appConfig.AddFieldSet(fieldSetWithInvalidField); len(errs) < 1 {
 		t.Fatalf("expected an error adding field with default value not in enumeration")
 	}
 
-	fieldSetWithInvalidField.Fields = []*bconf.Field{fieldWithGeneratedDefaultNotInEnumeration}
+	fieldSetWithInvalidField.Fields = bconf.Fields{fieldWithGeneratedDefaultNotInEnumeration}
 
 	if errs := appConfig.AddFieldSet(fieldSetWithInvalidField); len(errs) < 1 {
 		t.Fatalf("expected an error adding field with generated default value not in enumeration")
@@ -308,14 +311,7 @@ func TestBadAppConfigFields(t *testing.T) {
 }
 
 func TestAppConfigWithLoadConditions(t *testing.T) {
-	const appName = "bconf_test_app"
-
-	const appDescription = "Test-App is an HTTP server providing access to weather data"
-
-	appConfig := bconf.NewAppConfig(
-		appName,
-		appDescription,
-	)
+	appConfig := createBaseAppConfig()
 
 	const defaultFieldSetKey = "default"
 
@@ -331,18 +327,18 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 
 	defaultFieldSet := &bconf.FieldSet{
 		Key:    "default",
-		Fields: []*bconf.Field{loadAppOneField},
+		Fields: bconf.Fields{loadAppOneField},
 	}
 
 	fieldSetWithLoadCondition := &bconf.FieldSet{
 		Key:    "app_one",
-		Fields: []*bconf.Field{},
+		Fields: bconf.Fields{},
 		LoadConditions: []bconf.LoadCondition{
 			&bconf.FieldCondition{
 				FieldSetKey: defaultFieldSetKey,
 				FieldKey:    defaultFieldSetLoadAppOneKey,
-				Condition: func(fieldValue any) bool {
-					return true
+				Condition: func(fieldValue any) (bool, error) {
+					return true, nil
 				},
 			},
 		},
@@ -350,13 +346,13 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 
 	fieldSetWithUnmetLoadCondition := &bconf.FieldSet{
 		Key:    "app_two",
-		Fields: []*bconf.Field{},
+		Fields: bconf.Fields{},
 		LoadConditions: []bconf.LoadCondition{
 			&bconf.FieldCondition{
 				FieldSetKey: defaultFieldSetKey,
 				FieldKey:    defaultFieldSetLoadAppTwoKey,
-				Condition: func(fieldValue any) bool {
-					return true
+				Condition: func(fieldValue any) (bool, error) {
+					return true, nil
 				},
 			},
 		},
@@ -364,12 +360,12 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 
 	fieldSetWithInvalidLoadCondition := &bconf.FieldSet{
 		Key:    "app_three",
-		Fields: []*bconf.Field{},
+		Fields: bconf.Fields{},
 		LoadConditions: []bconf.LoadCondition{
 			&bconf.FieldCondition{
 				FieldSetKey: defaultFieldSetKey,
-				Condition: func(fieldValue any) bool {
-					return true
+				Condition: func(fieldValue any) (bool, error) {
+					return true, nil
 				},
 			},
 		},
@@ -393,6 +389,96 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 
 	if errs := appConfig.AddFieldSet(fieldSetWithInvalidLoadCondition); len(errs) < 1 {
 		t.Fatalf("expected error adding field set with invalid load condition")
+	}
+}
+
+func TestAppConfigAddFieldSets(t *testing.T) {
+	appConfig := createBaseAppConfig()
+
+	fieldSetOne := &bconf.FieldSet{
+		Key:    "one",
+		Fields: bconf.Fields{},
+	}
+	fieldSetTwo := &bconf.FieldSet{
+		Key:    "two",
+		Fields: bconf.Fields{},
+	}
+	fieldSetThree := &bconf.FieldSet{
+		Key:    "three",
+		Fields: bconf.Fields{},
+	}
+	fieldSetFour := &bconf.FieldSet{
+		Fields: bconf.Fields{},
+	}
+
+	if errs := appConfig.AddFieldSets(fieldSetOne, fieldSetTwo); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding field-sets: %v", errs)
+	}
+
+	if errs := appConfig.AddFieldSets(fieldSetThree, fieldSetFour); len(errs) < 1 {
+		t.Fatalf("expected an error adding field-set with missing key")
+	} else if !strings.Contains(errs[0].Error(), "field-set key required") {
+		t.Fatalf("unexpected error message: %s", errs[0])
+	}
+
+	if keys := appConfig.GetFieldSetKeys(); len(keys) != 2 {
+		t.Fatalf("unexpected number of field-sets found on app config: %d", len(keys))
+	}
+}
+
+func TestAppConfigAddField(t *testing.T) {
+	appConfig := createBaseAppConfig()
+
+	fieldSetOne := &bconf.FieldSet{
+		Key:    "one",
+		Fields: bconf.Fields{},
+	}
+
+	idFieldKey := "id"
+	idFieldGeneratedDefaultValue := "generated-default-value"
+	idField := &bconf.Field{
+		Key:         idFieldKey,
+		FieldType:   bconfconst.String,
+		Description: "Application identifier for use in application log messages and tracing",
+		DefaultGenerator: func() (any, error) {
+			return idFieldGeneratedDefaultValue, nil
+		},
+	}
+
+	fieldWithGenerateDefaultError := &bconf.Field{
+		Key:       "field_generate_default_error",
+		FieldType: bconfconst.String,
+		DefaultGenerator: func() (any, error) {
+			return "", errors.New("generated error")
+		},
+	}
+
+	fieldMissingFieldType := &bconf.Field{
+		Key: "field_missing_field_type",
+	}
+
+	if errs := appConfig.AddFieldSets(fieldSetOne); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding field-sets: %v", errs)
+	}
+
+	if errs := appConfig.AddField("one", idField); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding field: %v", errs)
+	}
+
+	if errs := appConfig.AddField("one", idField); len(errs) < 1 {
+		t.Fatalf("expected error trying to add duplicate field to field-set")
+	}
+
+	if errs := appConfig.AddField("undefined_field_set_key", idField); len(errs) < 1 {
+		t.Fatalf("expected error trying to add field to undefined field-set")
+	}
+
+	if errs := appConfig.AddField("one", fieldWithGenerateDefaultError); len(errs) < 1 {
+		t.Fatalf("expected error trying to add field with bad generated default")
+	}
+
+	if errs := appConfig.AddField("one", fieldMissingFieldType); len(errs) < 1 {
+		t.Fatalf("expected error trying to add field with missing field-type")
 	}
 }
 
@@ -426,7 +512,7 @@ func TestAppConfigObservability(t *testing.T) {
 	appFieldSetKey := "app"
 	appFieldSet := &bconf.FieldSet{
 		Key:    appFieldSetKey,
-		Fields: []*bconf.Field{idField, sessionSecretField},
+		Fields: bconf.Fields{idField, sessionSecretField},
 	}
 
 	if errs := appConfig.AddFieldSet(appFieldSet); len(errs) > 0 {
@@ -503,7 +589,7 @@ func TestAppConfigSetField(t *testing.T) {
 
 	defaultFieldSet := &bconf.FieldSet{
 		Key: defaultFieldSetKey,
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			stringField,
 		},
 	}
@@ -554,7 +640,7 @@ func TestAppConfigReloadingFields(t *testing.T) {
 
 	defaultFieldSet := &bconf.FieldSet{
 		Key: defaultFieldSetKey,
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			stringField,
 		},
 	}
@@ -631,7 +717,7 @@ func TestAppConfigFieldValidators(t *testing.T) {
 
 	defaultFieldSet := &bconf.FieldSet{
 		Key: defaultFieldSetKey,
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			stringField,
 		},
 	}
@@ -701,7 +787,7 @@ func TestAppConfigFieldDefaultGenerators(t *testing.T) {
 
 	defaultFieldSet := &bconf.FieldSet{
 		Key: defaultFieldSetKey,
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			stringField,
 		},
 	}
@@ -749,7 +835,7 @@ func TestAppConfigStringFieldTypes(t *testing.T) {
 
 	defaultFieldSet := &bconf.FieldSet{
 		Key: defaultFieldSetKey,
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			stringsField,
 			herringField,
 		},
@@ -824,7 +910,7 @@ func TestAppConfigIntFieldTypes(t *testing.T) {
 
 	defaultFieldSet := &bconf.FieldSet{
 		Key: defaultFieldSetKey,
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			intField,
 			intsField,
 		},
@@ -918,7 +1004,7 @@ func TestAppConfigBoolFieldTypes(t *testing.T) {
 
 	defaultFieldSet := &bconf.FieldSet{
 		Key: defaultFieldSetKey,
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			boolField,
 			boolsField,
 		},
@@ -1012,7 +1098,7 @@ func TestAppConfigDurationFieldTypes(t *testing.T) {
 
 	defaultFieldSet := &bconf.FieldSet{
 		Key: defaultFieldSetKey,
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			durationField,
 			durationsField,
 		},
@@ -1116,7 +1202,7 @@ func TestAppConfigTimeFieldTypes(t *testing.T) {
 
 	defaultFieldSet := &bconf.FieldSet{
 		Key: defaultFieldSetKey,
-		Fields: []*bconf.Field{
+		Fields: bconf.Fields{
 			timeField,
 			timesField,
 		},
