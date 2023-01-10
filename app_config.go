@@ -621,7 +621,7 @@ func (c *AppConfig) getFieldValue(fieldSetKey, fieldKey, expectedType string) (a
 
 type fieldEntry struct {
 	field          *Field
-	loadConditions *[]LoadCondition
+	loadConditions LoadConditions
 }
 
 func (c *AppConfig) fields() map[string]*fieldEntry {
@@ -632,7 +632,7 @@ func (c *AppConfig) fields() map[string]*fieldEntry {
 			entry := fieldEntry{field: field}
 
 			if len(fieldSet.LoadConditions) > 0 {
-				entry.loadConditions = &fieldSet.LoadConditions
+				entry.loadConditions = fieldSet.LoadConditions
 			}
 
 			fields[fmt.Sprintf("%s_%s", fieldSetKey, field.Key)] = &entry
@@ -743,18 +743,16 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) s
 		}
 	}
 
-	if loadConditions != nil {
-		for _, condition := range *loadConditions {
-			fieldSetDependency, fieldDependency := condition.FieldDependency()
-			if fieldSetDependency != "" && fieldDependency != "" {
-				builder.WriteString(spaceBuffer)
-				builder.WriteString(
-					fmt.Sprintf("Loading depends on field: '%s_%s'\n", fieldSetDependency, fieldDependency),
-				)
-			} else {
-				builder.WriteString(spaceBuffer)
-				builder.WriteString("Loading depends on: <custom-load-condition-function>\n")
-			}
+	for _, condition := range loadConditions {
+		fieldSetDependency, fieldDependency := condition.FieldDependency()
+		if fieldSetDependency != "" && fieldDependency != "" {
+			builder.WriteString(spaceBuffer)
+			builder.WriteString(
+				fmt.Sprintf("Loading depends on field: '%s_%s'\n", fieldSetDependency, fieldDependency),
+			)
+		} else {
+			builder.WriteString(spaceBuffer)
+			builder.WriteString("Loading depends on: <custom-load-condition-function>\n")
 		}
 	}
 
