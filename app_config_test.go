@@ -67,7 +67,7 @@ func TestAppConfigHelpString(t *testing.T) {
 	conditionalFieldSet := &bconf.FieldSet{
 		Key:    conditionalFieldSetKey,
 		Fields: bconf.Fields{durationField},
-		LoadConditions: []bconf.LoadCondition{
+		LoadConditions: bconf.LoadConditions{
 			&bconf.FieldCondition{
 				FieldSetKey: defaultFieldSetKey,
 				FieldKey:    stringFieldKey,
@@ -156,7 +156,7 @@ func TestAppConfig(t *testing.T) {
 				Required:  true,
 			},
 		},
-		LoadConditions: []bconf.LoadCondition{
+		LoadConditions: bconf.LoadConditions{
 			&bconf.FieldCondition{
 				FieldSetKey: "app",
 				FieldKey:    "connect_sqlite",
@@ -331,9 +331,15 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 	}
 
 	fieldSetWithLoadCondition := &bconf.FieldSet{
-		Key:    "app_one",
-		Fields: bconf.Fields{},
-		LoadConditions: []bconf.LoadCondition{
+		Key: "app_one",
+		Fields: bconf.Fields{
+			{
+				Key:       "svc_database_host",
+				FieldType: bconfconst.String,
+				Required:  true,
+			},
+		},
+		LoadConditions: bconf.LoadConditions{
 			&bconf.FieldCondition{
 				FieldSetKey: defaultFieldSetKey,
 				FieldKey:    defaultFieldSetLoadAppOneKey,
@@ -347,7 +353,7 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 	fieldSetWithUnmetLoadCondition := &bconf.FieldSet{
 		Key:    "app_two",
 		Fields: bconf.Fields{},
-		LoadConditions: []bconf.LoadCondition{
+		LoadConditions: bconf.LoadConditions{
 			&bconf.FieldCondition{
 				FieldSetKey: defaultFieldSetKey,
 				FieldKey:    defaultFieldSetLoadAppTwoKey,
@@ -361,7 +367,7 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 	fieldSetWithInvalidLoadCondition := &bconf.FieldSet{
 		Key:    "app_three",
 		Fields: bconf.Fields{},
-		LoadConditions: []bconf.LoadCondition{
+		LoadConditions: bconf.LoadConditions{
 			&bconf.FieldCondition{
 				FieldSetKey: defaultFieldSetKey,
 				Condition: func(fieldValue any) (bool, error) {
@@ -385,6 +391,13 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 
 	if errs := appConfig.AddFieldSet(fieldSetWithLoadCondition); len(errs) > 0 {
 		t.Fatalf("unexpected error(s) adding field set with valid load condition: %v", errs)
+	}
+
+	_ = os.Setenv("DEFAULT_LOAD_APP_ONE", "true")
+	_ = os.Setenv("APP_ONE_SVC_DATABASE_HOST", "localhost")
+
+	if errs := appConfig.Register(false); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) loading field set with valid load condition and required field: %v", errs)
 	}
 
 	if errs := appConfig.AddFieldSet(fieldSetWithInvalidLoadCondition); len(errs) < 1 {

@@ -33,7 +33,7 @@ _ := configuration.SetLoaders(
 
 _ := configruation.AddFieldSet( 
     "app",
-    []*bconf.Field{
+    bconf.Fields{
         {
             Key: "id", 
             FieldType: bconfconst.String,
@@ -65,7 +65,7 @@ _ := configruation.AddFieldSet(
 )
 _ := configuration.AddFieldSet(
     "log",
-    []*bconf.Field{
+    bconf.Fields{
         "level": {
             FieldType: bconfconst.String,
             Description: "Logging level",

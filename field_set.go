@@ -7,7 +7,7 @@ type FieldSets []*FieldSet
 type FieldSet struct {
 	fieldMap       map[string]*Field
 	Key            string
-	LoadConditions []LoadCondition
+	LoadConditions LoadConditions
 	Fields         Fields
 }
 
