@@ -15,8 +15,8 @@ go get github.com/rheisen/bconf
 
 ### Why `bconf`
 
-`bconf` provides tooling to write your configuration package by package, so that your configuration logic lives right
-alongside the package functionality. This makes it so that configuration is more easily re-used and composible by
+`bconf` provides tooling to write your configuration package by package. With `bconf`, configuration lives right
+alongside the code that needs it. This makes it so that configuration is more easily re-used and composible by
 multiple applications, just like your packages should be.
 
 `bconf` accomplishes this with `bconf.FieldSets`, which provide a namespace and logical grouping for related
@@ -174,7 +174,7 @@ _ := configruation.AddFieldSets(
 
 // Register with the option to handle --help / -h flag set to true
 if errs := configuration.Register(true); len(errs) > 0 {
-    // handle configuration load errors
+    // handle configuration load errors here
 }
 
 // returns the log level found in order of: default -> environment -> flag -> user override
