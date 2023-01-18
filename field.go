@@ -27,8 +27,8 @@ type Field struct {
 	overrideValue any
 	// Key is a required field that defines the field lookup value.
 	Key string
-	// FieldType is a required field that defines the type of value the field contains.
-	FieldType string
+	// Type is a required field that defines the type of value the field contains.
+	Type string
 	// Description defines a summary of the field contents.
 	Description string
 	// Enumeration defines a list of acceptable inputs for the field value.
@@ -83,7 +83,7 @@ func (f *Field) validate() []error {
 		errs = append(errs, fmt.Errorf("invalid key value: cannot be blank"))
 	}
 
-	if f.FieldType == "" {
+	if f.Type == "" {
 		errs = append(errs, fmt.Errorf("invalid field-type value: cannot be blank"))
 	}
 
@@ -94,7 +94,7 @@ func (f *Field) validate() []error {
 	fieldTypeFound := false
 
 	for _, fieldType := range bconfconst.FieldTypes() {
-		if fieldType != f.FieldType {
+		if fieldType != f.Type {
 			continue
 		}
 
@@ -131,7 +131,7 @@ func (f *Field) validate() []error {
 	}
 
 	if !fieldTypeFound {
-		errs = append(errs, fmt.Errorf("invalid field type specified: '%s'", f.FieldType))
+		errs = append(errs, fmt.Errorf("invalid field type specified: '%s'", f.Type))
 	}
 
 	return errs
@@ -318,10 +318,10 @@ func (f *Field) set(loaderName, value string) error {
 }
 
 func (f *Field) setOverride(value any) error {
-	if reflect.TypeOf(value).String() != f.FieldType {
+	if reflect.TypeOf(value).String() != f.Type {
 		return fmt.Errorf(
 			"invalid value field-type: expected '%s', found '%s'",
-			f.FieldType,
+			f.Type,
 			reflect.TypeOf(value).String(),
 		)
 	}
@@ -342,7 +342,7 @@ func (f *Field) setOverride(value any) error {
 }
 
 func (f *Field) parseString(value string) (any, error) {
-	switch f.FieldType {
+	switch f.Type {
 	case bconfconst.String:
 		return value, nil
 	case bconfconst.Strings:
@@ -364,7 +364,7 @@ func (f *Field) parseString(value string) (any, error) {
 	case bconfconst.Durations:
 		return f.parseToDurations(value)
 	default:
-		return "", fmt.Errorf("unsupported field type: %s", f.FieldType)
+		return "", fmt.Errorf("unsupported field type: %s", f.Type)
 	}
 }
 
