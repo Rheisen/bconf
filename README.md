@@ -31,14 +31,16 @@ _ := configuration.SetLoaders(
 _ := configruation.AddFieldSets(
     bconf.FSB().Key("app").Fields(
         bconf.FB().
-            Key("id").Type(bconf.String).Description("Application identifier").
+            Key("id").Type(bconf.String).
+            Description("Application identifier").
             DefaultGenerator(
                 func() (any, error) {
                     return fmt.Sprintf("%s", uuid.NewV4().String()), nil
                 }
             ).Create(),
         bconf.FB().
-            Key("session_secret").Type(bconf.String).Description("Application secret for session management").
+            Key("session_secret").Type(bconf.String).
+            Description("Application secret for session management").
             Sensitive().Required().
             Validator(
                 func(fieldValue any) error {
@@ -47,7 +49,7 @@ _ := configruation.AddFieldSets(
                     minLength := 20
                     if len(secret) < minLength {
                         return fmt.Errorf(
-                            "problem setting session_secret: expected string of minimum %d characters (len=%d).",
+                            "expected string of minimum %d characters (len=%d)",
                             minLength,
                             len(secret),
                         )
@@ -57,13 +59,16 @@ _ := configruation.AddFieldSets(
     ).Create(),
     bconf.FSB().Key("log").Fields(
         bconf.FB().
-            Key("level").Type(bconf.String).Description("Logging level").Default("info").
+            Key("level").Type(bconf.String).Default("info").
+            Description("Logging level").
             Enumeration("debug", "info", "warn", "error").Create(),
         bconf.FB().
-            Key("format").Type(bconf.String).Description("Logging format").Default("json").
+            Key("format").Type(bconf.String).Default("json").
+            Description("Logging format").
             Enumeration("console", "json").Create(),
         bconf.FB().
-            Key("color_enabled").Type(bconf.Bool).Description("Colored logs when format is 'console'").Default(true).
+            Key("color_enabled").Type(bconf.Bool).Default(true).
+            Description("Colored logs when format is 'console'").
             Create(),
     ).Create(),
 )
