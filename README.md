@@ -14,7 +14,7 @@ go get github.com/rheisen/bconf
 
 ### Example
 
-Below is an example of a `bconf.AppConfig` defined first with builders, and then with structs. Below this code block 
+Below is an example of a `bconf.AppConfig` defined first with builders, and then with structs. Below these code blocks 
 the behavior of the example is discussed.
 
 ```go
@@ -29,8 +29,8 @@ _ := configuration.SetLoaders(
 )
 
 _ := configruation.AddFieldSets(
-    bconf.FSB().Key("app").Fields(
-        bconf.FB().
+    bconf.NewFieldSetBuilder().Key("app").Fields(
+        bconf.NewFieldBuilder().
             Key("id").Type(bconf.String).
             Description("Application identifier").
             DefaultGenerator(
@@ -38,7 +38,7 @@ _ := configruation.AddFieldSets(
                     return fmt.Sprintf("%s", uuid.NewV4().String()), nil
                 }
             ).Create(),
-        bconf.FB().
+        bconf.FB(). // FB() is a shorthand function for NewFieldBuilder()
             Key("session_secret").Type(bconf.String).
             Description("Application secret for session management").
             Sensitive().Required().
@@ -57,7 +57,7 @@ _ := configruation.AddFieldSets(
                 }
             ).Create(),
     ).Create(),
-    bconf.FSB().Key("log").Fields(
+    bconf.FSB().Key("log").Fields( // FSB() is a shorthand function for NewFieldSetBuilder()
         bconf.FB().
             Key("level").Type(bconf.String).Default("info").
             Description("Logging level").
@@ -84,6 +84,8 @@ logLevel, err := b.GetString("log", "level")
 if err != nil {
     // handle retrieval error
 }
+
+fmt.Printf("log-level: %s", logLevel)
 ```
 
 ```go
@@ -121,7 +123,7 @@ _ := configruation.AddFieldSets(
                     minLength := 20
                     if len(secret) < minLength {
                         return fmt.Errorf(
-                            "problem setting session_secret: expected string of minimum %d characters (len=%d).",
+                            "expected string of minimum %d characters (len=%d)",
                             minLength,
                             len(secret),
                         )
@@ -168,4 +170,18 @@ logLevel, err := b.GetString("log", "level")
 if err != nil {
     // handle retrieval error
 }
+
+fmt.Printf("log-level: %s", logLevel)
+```
+
+In both of the code blocks above, a `bconf.AppConfig` is defined with two field-sets (which group configuration related
+to the application and logging in this case), and registered with help flag parsing.
+
+If this code was executed in a `main()` function, it would print the log level picked up by the configuration from the
+flags or run-time environment before falling back on the defined default value of "info".
+
+If this code was executed inside the `main()` function and passed a `--help` or `-h` flag, it would print the following
+output:
+
+```
 ```
