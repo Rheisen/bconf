@@ -243,7 +243,7 @@ func (c *AppConfig) ConfigMap() map[string]map[string]any {
 				continue
 			}
 
-			if field.FieldType == bconfconst.Duration {
+			if field.Type == bconfconst.Duration {
 				val = val.(time.Duration).Milliseconds()
 				fieldSetMap[fmt.Sprintf("%s_ms", field.Key)] = val
 
@@ -607,8 +607,8 @@ func (c *AppConfig) getFieldValue(fieldSetKey, fieldKey, expectedType string) (a
 		return nil, err
 	}
 
-	if expectedType != "" && expectedType != "any" && field.FieldType != expectedType {
-		return nil, fmt.Errorf("incorrect field-type for field '%s', found '%s'", fieldKey, field.FieldType)
+	if expectedType != "" && expectedType != "any" && field.Type != expectedType {
+		return nil, fmt.Errorf("incorrect field-type for field '%s', found '%s'", fieldKey, field.Type)
 	}
 
 	fieldValue, err := field.getValue()
@@ -710,7 +710,7 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) s
 	builder := strings.Builder{}
 	spaceBuffer := "\t\t"
 
-	builder.WriteString(fmt.Sprintf("%s %s\n", key, field.FieldType))
+	builder.WriteString(fmt.Sprintf("%s %s\n", key, field.Type))
 
 	if field.Description != "" {
 		builder.WriteString(spaceBuffer)

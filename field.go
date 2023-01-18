@@ -27,8 +27,8 @@ type Field struct {
 	overrideValue any
 	// Key is a required field that defines the field lookup value.
 	Key string
-	// FieldType is a required field that defines the type of value the field contains.
-	FieldType string
+	// Type is a required field that defines the type of value the field contains.
+	Type string
 	// Description defines a summary of the field contents.
 	Description string
 	// Enumeration defines a list of acceptable inputs for the field value.
@@ -83,7 +83,7 @@ func (f *Field) validate() []error {
 		errs = append(errs, fmt.Errorf("invalid key value: cannot be blank"))
 	}
 
-	if f.FieldType == "" {
+	if f.Type == "" {
 		errs = append(errs, fmt.Errorf("invalid field-type value: cannot be blank"))
 	}
 
@@ -94,7 +94,7 @@ func (f *Field) validate() []error {
 	fieldTypeFound := false
 
 	for _, fieldType := range bconfconst.FieldTypes() {
-		if fieldType != f.FieldType {
+		if fieldType != f.Type {
 			continue
 		}
 
@@ -131,7 +131,7 @@ func (f *Field) validate() []error {
 	}
 
 	if !fieldTypeFound {
-		errs = append(errs, fmt.Errorf("invalid field type specified: '%s'", f.FieldType))
+		errs = append(errs, fmt.Errorf("invalid field type specified: '%s'", f.Type))
 	}
 
 	return errs
@@ -253,11 +253,8 @@ func (f *Field) getValue() (any, error) {
 		return f.overrideValue, nil
 	}
 
-	if f.fieldFound != nil {
-		value, found := f.fieldValue[f.fieldFound[len(f.fieldFound)-1]]
-		if !found {
-			return nil, fmt.Errorf("library error, please report")
-		}
+	if f.fieldFound != nil && len(f.fieldFound) > 0 {
+		value := f.fieldValue[f.fieldFound[len(f.fieldFound)-1]]
 
 		return value, nil
 	}
@@ -273,18 +270,18 @@ func (f *Field) getValue() (any, error) {
 	return nil, fmt.Errorf("empty field value")
 }
 
-func (f *Field) getValueFrom(loader string) (any, error) {
-	if f.fieldValue == nil {
-		return nil, fmt.Errorf("")
-	}
+// func (f *Field) getValueFrom(loader string) (any, error) {
+// 	if f.fieldValue == nil {
+// 		return nil, fmt.Errorf("")
+// 	}
 
-	value, found := f.fieldValue[loader]
-	if !found {
-		return nil, fmt.Errorf("")
-	}
+// 	value, found := f.fieldValue[loader]
+// 	if !found {
+// 		return nil, fmt.Errorf("")
+// 	}
 
-	return value, nil
-}
+// 	return value, nil
+// }
 
 func (f *Field) set(loaderName, value string) error {
 	parsedValue, err := f.parseString(value)
@@ -318,10 +315,10 @@ func (f *Field) set(loaderName, value string) error {
 }
 
 func (f *Field) setOverride(value any) error {
-	if reflect.TypeOf(value).String() != f.FieldType {
+	if reflect.TypeOf(value).String() != f.Type {
 		return fmt.Errorf(
 			"invalid value field-type: expected '%s', found '%s'",
-			f.FieldType,
+			f.Type,
 			reflect.TypeOf(value).String(),
 		)
 	}
@@ -342,7 +339,7 @@ func (f *Field) setOverride(value any) error {
 }
 
 func (f *Field) parseString(value string) (any, error) {
-	switch f.FieldType {
+	switch f.Type {
 	case bconfconst.String:
 		return value, nil
 	case bconfconst.Strings:
@@ -364,7 +361,7 @@ func (f *Field) parseString(value string) (any, error) {
 	case bconfconst.Durations:
 		return f.parseToDurations(value)
 	default:
-		return "", fmt.Errorf("unsupported field type: %s", f.FieldType)
+		return "", fmt.Errorf("unsupported field type: %s", f.Type)
 	}
 }
 

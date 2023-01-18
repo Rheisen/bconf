@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+func NewEnvironmentLoader() *EnvironmentLoader {
+	return NewEnvironmentLoaderWithKeyPrefix("")
+}
+
+func NewEnvironmentLoaderWithKeyPrefix(keyPrefix string) *EnvironmentLoader {
+	return &EnvironmentLoader{KeyPrefix: keyPrefix}
+}
+
 type EnvironmentLoader struct {
 	KeyPrefix string
 }

@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+func NewFlagLoader() *FlagLoader {
+	return NewFlagLoaderWithKeyPrefix("")
+}
+
+func NewFlagLoaderWithKeyPrefix(keyPrefix string) *FlagLoader {
+	return &FlagLoader{KeyPrefix: keyPrefix}
+}
+
 type FlagLoader struct {
 	KeyPrefix      string
 	OverrideLookup []string

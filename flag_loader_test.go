@@ -8,6 +8,18 @@ import (
 	"github.com/rheisen/bconf"
 )
 
+func TestFlagLoaderFunctions(t *testing.T) {
+	l := bconf.NewFlagLoader()
+	if l == nil {
+		t.Fatalf("unexpected nil flag loader")
+	}
+
+	l = bconf.NewFlagLoaderWithKeyPrefix("key_prefix")
+	if l.KeyPrefix != "key_prefix" {
+		t.Fatalf("unexpected key prefix: %s", l.KeyPrefix)
+	}
+}
+
 func TestFlagLoader(t *testing.T) {
 	const sessionKey = "session_key"
 
