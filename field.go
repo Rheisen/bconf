@@ -253,11 +253,8 @@ func (f *Field) getValue() (any, error) {
 		return f.overrideValue, nil
 	}
 
-	if f.fieldFound != nil {
-		value, found := f.fieldValue[f.fieldFound[len(f.fieldFound)-1]]
-		if !found {
-			return nil, fmt.Errorf("library error, please report")
-		}
+	if f.fieldFound != nil && len(f.fieldFound) > 0 {
+		value := f.fieldValue[f.fieldFound[len(f.fieldFound)-1]]
 
 		return value, nil
 	}
@@ -273,18 +270,18 @@ func (f *Field) getValue() (any, error) {
 	return nil, fmt.Errorf("empty field value")
 }
 
-func (f *Field) getValueFrom(loader string) (any, error) {
-	if f.fieldValue == nil {
-		return nil, fmt.Errorf("")
-	}
+// func (f *Field) getValueFrom(loader string) (any, error) {
+// 	if f.fieldValue == nil {
+// 		return nil, fmt.Errorf("")
+// 	}
 
-	value, found := f.fieldValue[loader]
-	if !found {
-		return nil, fmt.Errorf("")
-	}
+// 	value, found := f.fieldValue[loader]
+// 	if !found {
+// 		return nil, fmt.Errorf("")
+// 	}
 
-	return value, nil
-}
+// 	return value, nil
+// }
 
 func (f *Field) set(loaderName, value string) error {
 	parsedValue, err := f.parseString(value)

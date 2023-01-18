@@ -9,6 +9,18 @@ import (
 	"github.com/rheisen/bconf"
 )
 
+func TestEnvironmentLoaderFunctions(t *testing.T) {
+	l := bconf.NewEnvironmentLoader()
+	if l == nil {
+		t.Fatalf("unexpected nil environment loader")
+	}
+
+	l = bconf.NewEnvironmentLoaderWithKeyPrefix("key_prefix")
+	if l.KeyPrefix != "key_prefix" {
+		t.Fatalf("unexpected key prefix: %s", l.KeyPrefix)
+	}
+}
+
 func TestEnvironmentLoader(t *testing.T) {
 	const sessionKey = "session_key"
 

@@ -6,11 +6,24 @@
 [![Build Status](https://github.com/rheisen/bconf/actions/workflows/golang-test.yml/badge.svg?branch=main)](https://github.com/rheisen/bconf/actions/workflows/golang-test.yml)
 [![codecov.io](https://codecov.io/github/rheisen/bconf/coverage.svg?branch=main)](https://codecov.io/github/rheisen/bconf?branch=main)
 
-`bconf` is an opinionated configuration framework that makes it easy to define, load, and validate configuration values.
+`bconf` is an opinionated configuration framework that makes it easy to define, load, and validate application 
+configuration values.
 
 ```sh
 go get github.com/rheisen/bconf
 ```
+
+### Why `bconf`
+
+`bconf` provides tooling to write your configuration package by package, so that your configuration logic lives right
+alongside the package functionality. This makes it so that configuration is more easily re-used and composible by
+multiple applications, just like your packages should be.
+
+`bconf` accomplishes this with `bconf.FieldSets`, which provide a namespace and logical grouping for related
+configuration. Independent packages define their `bconf.FieldSets`, and then application executables can attach them
+to a `bconf.AppConfig`, which provides a unified structure for loading and retrieving configuration values.
+
+Check out the introductory examples below, and see if `bconf` is right for your project.
 
 ### Example
 
@@ -24,8 +37,8 @@ configuration := bconf.NewAppConfig(
 )
 
 _ := configuration.SetLoaders(
-    &bconf.EnvironmentLoader{KeyPrefix: "ext_http_api"},
-    &bconf.FlagLoader{},
+    bconf.NewEnvironmentLoaderWithKeyPrefix("ext_http_api"),
+    bconf.NewFlagLoader(),
 )
 
 _ := configruation.AddFieldSets(
@@ -35,8 +48,8 @@ _ := configruation.AddFieldSets(
             Description("Application identifier").
             DefaultGenerator(
                 func() (any, error) {
-                    return fmt.Sprintf("%s", uuid.NewV4().String()), nil
-                }
+                    return uuid.NewV4().String(), nil
+                },
             ).Create(),
         bconf.FB(). // FB() is a shorthand function for NewFieldBuilder()
             Key("session_secret").Type(bconf.String).
@@ -54,7 +67,7 @@ _ := configruation.AddFieldSets(
                             len(secret),
                         )
                     }
-                }
+                },
             ).Create(),
     ).Create(),
     bconf.FSB().Key("log").Fields( // FSB() is a shorthand function for NewFieldSetBuilder()
@@ -108,7 +121,7 @@ _ := configruation.AddFieldSets(
                 Type: bconf.String,
                 Description: "Application identifier",
                 DefaultGenerator: func () (any, error) {
-                    return fmt.Sprintf("%s", uuid.NewV4().String()), nil
+                    return uuid.NewV4().String(), nil
                 },
             },
             {
@@ -184,4 +197,53 @@ If this code was executed inside the `main()` function and passed a `--help` or 
 output:
 
 ```
+Usage of 'external_http_api':
+HTTP API for user authentication and authorization
+
+Required Configuration:
+        app_session_secret string
+                Application secret for session management
+                Environment key: 'EXT_HTTP_API_APP_SESSION_SECRET'
+                Flag argument: '--app_session_secret'
+Optional Configuration:
+        app_id string
+                Application identifier
+                Default value: <generated-at-run-time>
+                Environment key: 'EXT_HTTP_API_APP_ID'
+                Flag argument: '--app_id'
+        log_color_enabled bool
+                Colored logs when format is 'console'
+                Default value: 'true'
+                Environment key: 'EXT_HTTP_API_LOG_COLOR_ENABLED'
+                Flag argument: '--log_color_enabled'
+        log_format string
+                Logging format
+                Accepted values: ['console', 'json']
+                Default value: 'json'
+                Environment key: 'EXT_HTTP_API_LOG_FORMAT'
+                Flag argument: '--log_format'
+        log_level string
+                Logging level
+                Accepted values: ['debug', 'info', 'warn', 'error']
+                Default value: 'info'
+                Environment key: 'EXT_HTTP_API_LOG_LEVEL'
+                Flag argument: '--log_level'
 ```
+
+This is a simple example where all the configuration code is in one place, but it doesn't need to be!
+
+To view more examples, including a real-world example showcasing how configuration can live alongside package code,
+please visit [github.com/rheisen/bconf-examples](https://github.com/rheisen/bconf-examples).
+
+### Features
+
+* Ability to generate default configuration values with the `bconf.Field` `DefaultGenerator` function
+* Flexible configuration value validation with the `bconf.Field` `Validator` function
+* Load configuration values from environment and flags
+* Ability to conditionally load `bconf.FieldSets` via flexible `bconf.LoadConditions`
+
+### Limitations
+
+* No support for loading configuration values from JSON or YAML files (although a JSON or YAML file loader can be
+given to `bconf` so long as it follows the `bconf.Loader` interface)
+* No support for watching / automatically updating configuration values

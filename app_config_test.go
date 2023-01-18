@@ -495,6 +495,84 @@ func TestAppConfigAddField(t *testing.T) {
 	}
 }
 
+func TestAppConfigLoadFieldSet(t *testing.T) {
+	appConfig := createBaseAppConfig()
+	appConfig.Register(false)
+
+	errs := appConfig.LoadFieldSet("field_set_key")
+
+	if len(errs) < 1 {
+		t.Fatalf("unexpected errors length when loading non-existent field-set: %d", len(errs))
+	}
+
+	if !strings.Contains(errs[0].Error(), "field-set with key 'field_set_key' not found") {
+		t.Fatalf("unexpected error message: %s", errs[0])
+	}
+
+	errs = appConfig.AddFieldSet(bconf.FSB().Key("default").Fields(
+		bconf.FB().Key("field_key").Type(bconf.String).Default("value").Create(),
+	).Create())
+
+	if len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding field-set: %v", errs)
+	}
+
+	errs = appConfig.AddFieldSet(bconf.FSB().Key("bad_field_condition_conditional").Fields(
+		bconf.FB().Key("some_key").Type(bconf.String).Default("value").Create(),
+	).LoadConditions(
+		bconf.NewFieldConditionBuilder().FieldSetKey("default").FieldKey("field_key").Condition(
+			func(fieldValue any) (bool, error) {
+				return true, fmt.Errorf("condition error")
+			},
+		).Create(),
+	).Create())
+
+	if len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding field-set: %v", errs)
+	}
+
+	errs = appConfig.LoadFieldSet("bad_field_condition_conditional")
+
+	if len(errs) < 1 {
+		t.Fatalf("expected errors loading conditional field-set")
+	}
+
+	if !strings.Contains(errs[0].Error(), "problem getting load condition outcome") {
+		t.Fatalf("unexpected error message: %s", errs[0])
+	}
+}
+
+func TestAppConfigLoadField(t *testing.T) {
+	appConfig := createBaseAppConfig()
+	appConfig.Register(false)
+
+	errs := appConfig.LoadField("unk_field_set_key", "unk_field_key")
+	if len(errs) < 1 {
+		t.Fatalf("unexpected errors length when loading non-existent field-set: %d", len(errs))
+	}
+
+	if !strings.Contains(errs[0].Error(), "field-set with key 'unk_field_set_key' not found") {
+		t.Fatalf("unexpected error message: %s", errs[0])
+	}
+
+	errs = appConfig.AddFieldSet(bconf.FSB().Key("default").Fields(
+		bconf.FB().Key("field_key").Type(bconf.String).Default("value").Create(),
+	).Create())
+
+	if len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding field-set: %v", errs)
+	}
+
+	errs = appConfig.LoadField("default", "unk_field_key")
+	if len(errs) < 1 {
+		t.Fatalf("unexpected errors length when loading non-existent field-set field: %d", len(errs))
+	}
+
+	if !strings.Contains(errs[0].Error(), "field with key 'unk_field_key' not found") {
+		t.Fatalf("unexpected error message: %s", errs[0])
+	}
+}
+
 func TestAppConfigObservability(t *testing.T) {
 	appConfig := createBaseAppConfig()
 
@@ -520,12 +598,16 @@ func TestAppConfigObservability(t *testing.T) {
 		},
 	}
 
+	timeoutFieldKey := "timeout"
+	timeoutDefaultValue := 30 * time.Second
+	timeoutField := bconf.FB().Key(timeoutFieldKey).Type(bconf.Duration).Default(timeoutDefaultValue).Create()
+
 	os.Setenv("APP_SESSION_SECRET", sessionSecretEnvironmentValue)
 
 	appFieldSetKey := "app"
 	appFieldSet := &bconf.FieldSet{
 		Key:    appFieldSetKey,
-		Fields: bconf.Fields{idField, sessionSecretField},
+		Fields: bconf.Fields{idField, sessionSecretField, timeoutField},
 	}
 
 	if errs := appConfig.AddFieldSet(appFieldSet); len(errs) > 0 {
@@ -581,6 +663,15 @@ func TestAppConfigObservability(t *testing.T) {
 			sessionSecretFieldKey,
 			fieldMapValue,
 		)
+	}
+
+	fieldMapValue, found = fieldMap[appFieldSetKey][fmt.Sprintf("%s_ms", timeoutFieldKey)]
+	if !found {
+		t.Fatalf("expected to find timeout_ms key in config map")
+	}
+
+	if fieldMapValue != int64(30000) {
+		t.Fatalf("unexpected timeout_ms value: %v", fieldMapValue)
 	}
 }
 
@@ -820,11 +911,26 @@ func TestAppConfigFieldDefaultGenerators(t *testing.T) {
 	}
 }
 
-func TestAppConfigStringFieldTypes(t *testing.T) {
-	appConfig := bconf.NewAppConfig(
-		"app",
-		"description",
+func TestAppConfigFieldEnumeration(t *testing.T) {
+	appConfig := createBaseAppConfig()
+
+	errs := appConfig.AddFieldSets(
+		bconf.FSB().Key("default").Fields(
+			bconf.FB().Key("field").Type(bconf.String).Enumeration(1, 2, 3).Create(),
+		).Create(),
 	)
+
+	if len(errs) != 3 {
+		t.Fatalf("expected three errors adding a field-set with a field containing invalid enumeration values")
+	}
+
+	if !strings.Contains(errs[0].Error(), "invalid enumeration value type") {
+		t.Fatalf("unexpected error message: %s", errs[0].Error())
+	}
+}
+
+func TestAppConfigStringFieldTypes(t *testing.T) {
+	appConfig := createBaseAppConfig()
 
 	_ = appConfig.SetLoaders(&bconf.EnvironmentLoader{})
 
