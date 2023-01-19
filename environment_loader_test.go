@@ -21,19 +21,48 @@ func TestEnvironmentLoaderFunctions(t *testing.T) {
 	}
 }
 
-func TestEnvironmentLoader(t *testing.T) {
-	const sessionKey = "session_key"
+func TestEnvironmentLoaderGetMap(t *testing.T) {
+	const appFieldSetKey = "app"
 
-	const logLevelKey = "log_level"
+	const idFieldKey = "id"
+
+	const secretFieldKey = "secret"
+
+	const appIDValue = "test-app-id"
+
+	const appSecretValue = "test-sensitive-value"
+
+	appIDEnvironmentVariable := strings.ToUpper(fmt.Sprintf("%s_%s", appFieldSetKey, idFieldKey))
+	appSecretEnvironmentVariable := strings.ToUpper(fmt.Sprintf("%s_%s", appFieldSetKey, secretFieldKey))
+
+	os.Setenv(appIDEnvironmentVariable, appIDValue)
+	os.Setenv(appSecretEnvironmentVariable, appSecretValue)
+
+	loader := bconf.NewEnvironmentLoader()
+
+	appMap := loader.GetMap(appFieldSetKey, []string{idFieldKey, secretFieldKey, "invalid_field_key"})
+	if len(appMap) != 2 {
+		t.Fatalf("unexpected appMap length '%d', expected '2'", len(appMap))
+	}
+}
+
+func TestEnvironmentLoader(t *testing.T) {
+	const sessionFieldSet = "session"
+
+	const sessionTokenKey = "token"
+
+	const logFieldSet = "log"
+
+	const logLevelKey = "level"
 
 	const sessionKeyValue = "abc123"
 
 	const logLevelValue = "error"
 
-	envSessionKey := strings.ToUpper(sessionKey)
-	envLogLevelKey := strings.ToUpper(logLevelKey)
+	envSessionTokenKey := strings.ToUpper(fmt.Sprintf("%s_%s", sessionFieldSet, sessionTokenKey))
+	envLogLevelKey := strings.ToUpper(fmt.Sprintf("%s_%s", logFieldSet, logLevelKey))
 
-	os.Setenv(envSessionKey, sessionKeyValue)
+	os.Setenv(envSessionTokenKey, sessionKeyValue)
 	os.Setenv(envLogLevelKey, logLevelValue)
 
 	l := bconf.EnvironmentLoader{}
@@ -43,15 +72,18 @@ func TestEnvironmentLoader(t *testing.T) {
 		t.Errorf("unexpected loader name: '%s'", l.Name())
 	}
 
-	if !strings.Contains(l.HelpString(sessionKey), envSessionKey) {
-		t.Errorf("unexpected loader help string contents: '%s'", clone.HelpString(sessionKey))
+	if !strings.Contains(l.HelpString(sessionFieldSet, sessionTokenKey), envSessionTokenKey) {
+		t.Errorf("unexpected loader help string contents: '%s'", l.HelpString(sessionFieldSet, sessionTokenKey))
 	}
 
-	if !strings.Contains(clone.HelpString(sessionKey), envSessionKey) {
-		t.Errorf("unexpected loader clone help string contents: '%s'", clone.HelpString(sessionKey))
+	if !strings.Contains(clone.HelpString(sessionFieldSet, sessionTokenKey), envSessionTokenKey) {
+		t.Errorf(
+			"unexpected loader clone help string contents: '%s'",
+			clone.HelpString(sessionFieldSet, sessionTokenKey),
+		)
 	}
 
-	sessionKeyLookup, found := l.Get(sessionKey)
+	sessionKeyLookup, found := l.Get(sessionFieldSet, sessionTokenKey)
 	if !found {
 		t.Errorf("unexpected problem getting session_key value")
 	}
@@ -60,7 +92,7 @@ func TestEnvironmentLoader(t *testing.T) {
 		t.Errorf("unexpected value for session key: '%s'", sessionKeyLookup)
 	}
 
-	logLevel, found := l.Get(logLevelKey)
+	logLevel, found := l.Get(logFieldSet, logLevelKey)
 	if !found {
 		t.Errorf("unexpected problem getting log_level value")
 	}
@@ -69,7 +101,7 @@ func TestEnvironmentLoader(t *testing.T) {
 		t.Errorf("unexpected value for log level: '%s'", logLevel)
 	}
 
-	cloneSessionKeyLookup, cloneFound := clone.Get(sessionKey)
+	cloneSessionKeyLookup, cloneFound := clone.Get(sessionFieldSet, sessionTokenKey)
 	if !cloneFound {
 		t.Errorf("unexpected problem getting session_key value from loader clone")
 	}
@@ -80,9 +112,13 @@ func TestEnvironmentLoader(t *testing.T) {
 }
 
 func TestEnvironmentLoaderWithKeyPrefix(t *testing.T) {
-	const sessionKey = "session_key"
+	const sessionFieldSet = "session"
 
-	const logLevelKey = "log_level"
+	const sessionTokenKey = "token"
+
+	const logFieldSet = "log"
+
+	const logLevelKey = "level"
 
 	const sessionKeyValue = "abc123"
 
@@ -90,8 +126,8 @@ func TestEnvironmentLoaderWithKeyPrefix(t *testing.T) {
 
 	const keyPrefix = "ext_http_api"
 
-	envSessionKey := strings.ToUpper(fmt.Sprintf("%s_%s", keyPrefix, sessionKey))
-	envLogLevelKey := strings.ToUpper(fmt.Sprintf("%s_%s", keyPrefix, logLevelKey))
+	envSessionKey := strings.ToUpper(fmt.Sprintf("%s_%s_%s", keyPrefix, sessionFieldSet, sessionTokenKey))
+	envLogLevelKey := strings.ToUpper(fmt.Sprintf("%s_%s_%s", keyPrefix, logFieldSet, logLevelKey))
 
 	os.Setenv(envSessionKey, sessionKeyValue)
 	os.Setenv(envLogLevelKey, logLevelValue)
@@ -105,15 +141,18 @@ func TestEnvironmentLoaderWithKeyPrefix(t *testing.T) {
 		t.Errorf("unexpected loader name: '%s'", l.Name())
 	}
 
-	if !strings.Contains(l.HelpString(sessionKey), envSessionKey) {
-		t.Errorf("unexpected loader help string contents: '%s'", clone.HelpString(sessionKey))
+	if !strings.Contains(l.HelpString(sessionFieldSet, sessionTokenKey), envSessionKey) {
+		t.Errorf("unexpected loader help string contents: '%s'", clone.HelpString(sessionFieldSet, sessionTokenKey))
 	}
 
-	if !strings.Contains(clone.HelpString(sessionKey), envSessionKey) {
-		t.Errorf("unexpected loader clone help string contents: '%s'", clone.HelpString(sessionKey))
+	if !strings.Contains(clone.HelpString(sessionFieldSet, sessionTokenKey), envSessionKey) {
+		t.Errorf(
+			"unexpected loader clone help string contents: '%s'",
+			clone.HelpString(sessionFieldSet, sessionTokenKey),
+		)
 	}
 
-	sessionKeyLookup, found := l.Get(sessionKey)
+	sessionKeyLookup, found := l.Get(sessionFieldSet, sessionTokenKey)
 	if !found {
 		t.Errorf("unexpected problem getting session_key value")
 	}
@@ -122,7 +161,7 @@ func TestEnvironmentLoaderWithKeyPrefix(t *testing.T) {
 		t.Errorf("unexpected value for session key: '%s'", sessionKeyLookup)
 	}
 
-	logLevel, found := l.Get(logLevelKey)
+	logLevel, found := l.Get(logFieldSet, logLevelKey)
 	if !found {
 		t.Errorf("unexpected problem getting log_level value")
 	}
@@ -131,7 +170,7 @@ func TestEnvironmentLoaderWithKeyPrefix(t *testing.T) {
 		t.Errorf("unexpected value for log level: '%s'", logLevel)
 	}
 
-	cloneSessionKeyLookup, cloneFound := clone.Get(sessionKey)
+	cloneSessionKeyLookup, cloneFound := clone.Get(sessionFieldSet, sessionTokenKey)
 	if !cloneFound {
 		t.Errorf("unexpected problem getting session_key value from loader clone")
 	}

@@ -118,3 +118,13 @@ func (f *FieldSet) validateFields() []error {
 
 	return errs
 }
+
+func (f *FieldSet) fieldKeys() []string {
+	keys := []string{}
+
+	for _, field := range f.fieldMap {
+		keys = append(keys, field.Key)
+	}
+
+	return keys
+}

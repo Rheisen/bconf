@@ -1,11 +1,11 @@
 package bconf
 
 type Loader interface {
-	Clone() Loader
+	CloneLoader() Loader
 	Name() string
-	Get(key string) (value string, found bool)
-	// GetMap(keys []string) (values map[string]string)
-	HelpString(key string) string
+	Get(fieldSetKey, fieldKey string) (value string, found bool)
+	GetMap(fieldSetKey string, fieldKeys []string) (fieldValues map[string]string)
+	HelpString(fieldSetKey, fieldKey string) string
 }
 
 type LoaderKeyOverride struct {

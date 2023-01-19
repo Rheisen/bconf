@@ -45,7 +45,7 @@ func (c *AppConfig) SetLoaders(loaders ...Loader) []error {
 
 	clonedLoaders := make([]Loader, len(loaders))
 	for index, loader := range loaders {
-		clonedLoaders[index] = loader.Clone()
+		clonedLoaders[index] = loader.CloneLoader()
 	}
 
 	loaderNames := make(map[string]struct{}, len(clonedLoaders))
@@ -155,7 +155,7 @@ func (c *AppConfig) LoadField(fieldSetKey, fieldKey string) []error {
 	}
 
 	for _, loader := range c.loaders {
-		value, found := loader.Get(fmt.Sprintf("%s_%s", fieldSetKey, fieldKey))
+		value, found := loader.Get(fieldSetKey, fieldKey)
 		if !found {
 			continue
 		}
@@ -542,12 +542,10 @@ func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
 	}
 
 	for _, loader := range c.loaders {
-		for key, field := range c.fieldSets[fieldSetKey].fieldMap {
-			value, found := loader.Get(fmt.Sprintf("%s_%s", fieldSetKey, key))
-			if found {
-				if err := field.set(loader.Name(), value); err != nil {
-					errs = append(errs, fmt.Errorf("field '%s' load error: %w", key, err))
-				}
+		values := loader.GetMap(fieldSetKey, c.fieldSets[fieldSetKey].fieldKeys())
+		for key, value := range values {
+			if err := c.fieldSets[fieldSetKey].fieldMap[key].set(loader.Name(), value); err != nil {
+				errs = append(errs, fmt.Errorf("field '%s' load error: %w", key, err))
 			}
 		}
 	}
@@ -620,6 +618,7 @@ func (c *AppConfig) getFieldValue(fieldSetKey, fieldKey, expectedType string) (a
 }
 
 type fieldEntry struct {
+	fieldSetKey    string
 	field          *Field
 	loadConditions LoadConditions
 }
@@ -629,7 +628,7 @@ func (c *AppConfig) fields() map[string]*fieldEntry {
 
 	for fieldSetKey, fieldSet := range c.fieldSets {
 		for _, field := range fieldSet.fieldMap {
-			entry := fieldEntry{field: field}
+			entry := fieldEntry{field: field, fieldSetKey: fieldSetKey}
 
 			if len(fieldSet.LoadConditions) > 0 {
 				entry.loadConditions = fieldSet.LoadConditions
@@ -736,7 +735,7 @@ func (c *AppConfig) fieldHelpString(fields map[string]*fieldEntry, key string) s
 	}
 
 	for _, loader := range c.loaders {
-		helpString := loader.HelpString(key)
+		helpString := loader.HelpString(entry.fieldSetKey, entry.field.Key)
 		if helpString != "" {
 			builder.WriteString(spaceBuffer)
 			builder.WriteString(fmt.Sprintf("%s\n", helpString))

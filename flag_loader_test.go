@@ -20,23 +20,55 @@ func TestFlagLoaderFunctions(t *testing.T) {
 	}
 }
 
-func TestFlagLoader(t *testing.T) {
-	const sessionKey = "session_key"
+func TestFlagLoaderGetMap(t *testing.T) {
+	const appFieldSetKey = "app"
 
-	const logLevelKey = "log_level"
+	const idFieldKey = "id"
+
+	const secretFieldKey = "secret"
+
+	const appIDValue = "test-app-id"
+
+	const appSecretValue = "test-sensitive-value"
+
+	appIDFlagVariable := fmt.Sprintf("--%s_%s=%s", appFieldSetKey, idFieldKey, appIDValue)
+
+	loader := bconf.NewFlagLoader()
+	loader.OverrideLookup = []string{
+		appIDFlagVariable,
+		fmt.Sprintf("--%s_%s", appFieldSetKey, secretFieldKey),
+		appSecretValue,
+	}
+
+	appMap := loader.GetMap(appFieldSetKey, []string{idFieldKey, secretFieldKey, "invalid_field_key"})
+	if len(appMap) != 2 {
+		t.Fatalf("unexpected appMap length '%d', expected '2'", len(appMap))
+	}
+}
+
+func TestFlagLoader(t *testing.T) {
+	const sessionFieldSet = "session"
+
+	const sessionTokenKey = "token"
+
+	const logFieldSet = "log"
+
+	const logLevelKey = "level"
+
+	const logColorKey = "color"
 
 	const sessionKeyValue = "abc123"
 
 	const logLevelValue = "error"
 
-	const logColorKey = "log_color"
+	sessionTokenFlag := fmt.Sprintf("--%s_%s", sessionFieldSet, sessionTokenKey)
 
 	l := bconf.FlagLoader{
 		OverrideLookup: []string{
-			fmt.Sprintf("--%s=%s", sessionKey, sessionKeyValue),
-			fmt.Sprintf("--%s", logLevelKey),
+			fmt.Sprintf("--%s_%s=%s", sessionFieldSet, sessionTokenKey, sessionKeyValue),
+			fmt.Sprintf("--%s_%s", logFieldSet, logLevelKey),
 			logLevelValue,
-			fmt.Sprintf("-%s", logColorKey),
+			fmt.Sprintf("-%s_%s", logFieldSet, logColorKey),
 		},
 	}
 	clone := l.Clone()
@@ -45,15 +77,18 @@ func TestFlagLoader(t *testing.T) {
 		t.Errorf("unexpected loader name: '%s'", l.Name())
 	}
 
-	if !strings.Contains(l.HelpString(sessionKey), sessionKey) {
-		t.Errorf("unexpected loader help string contents: '%s'", clone.HelpString(sessionKey))
+	if !strings.Contains(l.HelpString(sessionFieldSet, sessionTokenKey), sessionTokenFlag) {
+		t.Errorf("unexpected loader help string contents: '%s'", l.HelpString(sessionFieldSet, sessionTokenKey))
 	}
 
-	if !strings.Contains(clone.HelpString(sessionKey), sessionKey) {
-		t.Errorf("unexpected loader clone help string contents: '%s'", clone.HelpString(sessionKey))
+	if !strings.Contains(clone.HelpString(sessionFieldSet, sessionTokenKey), sessionTokenFlag) {
+		t.Errorf(
+			"unexpected loader clone help string contents: '%s'",
+			clone.HelpString(sessionFieldSet, sessionTokenKey),
+		)
 	}
 
-	sessionKeyLookup, found := l.Get(sessionKey)
+	sessionKeyLookup, found := l.Get(sessionFieldSet, sessionTokenKey)
 	if !found {
 		t.Errorf("unexpected problem getting session_key value")
 	}
@@ -62,7 +97,7 @@ func TestFlagLoader(t *testing.T) {
 		t.Errorf("unexpected value for session key: '%s'", sessionKeyLookup)
 	}
 
-	logLevel, found := l.Get(logLevelKey)
+	logLevel, found := l.Get(logFieldSet, logLevelKey)
 	if !found {
 		t.Errorf("unexpected problem getting log_level value")
 	}
@@ -71,7 +106,7 @@ func TestFlagLoader(t *testing.T) {
 		t.Errorf("unexpected value for log level: '%s'", logLevel)
 	}
 
-	cloneSessionKeyLookup, cloneFound := clone.Get(sessionKey)
+	cloneSessionKeyLookup, cloneFound := clone.Get(sessionFieldSet, sessionTokenKey)
 	if !cloneFound {
 		t.Errorf("unexpected problem getting session_key value from loader clone")
 	}
@@ -80,7 +115,7 @@ func TestFlagLoader(t *testing.T) {
 		t.Errorf("unexpected value for session_key from loader clone: '%s'", cloneSessionKeyLookup)
 	}
 
-	logColor, found := l.Get(logColorKey)
+	logColor, found := l.Get(logFieldSet, logColorKey)
 	if !found {
 		t.Errorf("unexpected problem getting log_color value")
 	}
@@ -89,16 +124,20 @@ func TestFlagLoader(t *testing.T) {
 		t.Errorf("unexpected log color value: '%s'", logColor)
 	}
 
-	_, found = l.Get("random_key")
+	_, found = l.Get("random_key", "random_key")
 	if found {
 		t.Errorf("not expecting to find a value for unset key")
 	}
 }
 
 func TestFlagLoaderWithKeyPrefix(t *testing.T) {
-	const sessionKey = "session_key"
+	const sessionFieldSet = "session"
 
-	const logLevelKey = "log_level"
+	const sessionTokenKey = "token"
+
+	const logFieldSet = "log"
+
+	const logLevelKey = "level"
 
 	const sessionKeyValue = "abc123"
 
@@ -106,11 +145,13 @@ func TestFlagLoaderWithKeyPrefix(t *testing.T) {
 
 	const keyPrefix = "ext_http_api"
 
+	sessionTokenFlag := fmt.Sprintf("--%s_%s_%s", keyPrefix, sessionFieldSet, sessionTokenKey)
+
 	l := bconf.FlagLoader{
 		KeyPrefix: keyPrefix,
 		OverrideLookup: []string{
-			fmt.Sprintf("--%s=%s", sessionKey, sessionKeyValue),
-			fmt.Sprintf("--%s", logLevelKey),
+			fmt.Sprintf("--%s_%s=%s", sessionFieldSet, sessionTokenKey, sessionKeyValue),
+			fmt.Sprintf("--%s_%s", logFieldSet, logLevelKey),
 			logLevelValue,
 		},
 	}
@@ -120,15 +161,18 @@ func TestFlagLoaderWithKeyPrefix(t *testing.T) {
 		t.Errorf("unexpected loader name: '%s'", l.Name())
 	}
 
-	if !strings.Contains(l.HelpString(sessionKey), fmt.Sprintf("%s_%s", keyPrefix, sessionKey)) {
-		t.Errorf("unexpected loader help string contents: '%s'", clone.HelpString(sessionKey))
+	if !strings.Contains(l.HelpString(sessionFieldSet, sessionTokenKey), sessionTokenFlag) {
+		t.Errorf("unexpected loader help string contents: '%s'", l.HelpString(sessionFieldSet, sessionTokenKey))
 	}
 
-	if !strings.Contains(clone.HelpString(sessionKey), fmt.Sprintf("%s_%s", keyPrefix, sessionKey)) {
-		t.Errorf("unexpected loader clone help string contents: '%s'", clone.HelpString(sessionKey))
+	if !strings.Contains(clone.HelpString(sessionFieldSet, sessionTokenKey), sessionTokenFlag) {
+		t.Errorf(
+			"unexpected loader clone help string contents: '%s'",
+			clone.HelpString(sessionFieldSet, sessionTokenKey),
+		)
 	}
 
-	sessionKeyLookup, found := l.Get(sessionKey)
+	sessionKeyLookup, found := l.Get(sessionFieldSet, sessionTokenKey)
 	if !found {
 		t.Errorf("unexpected problem getting session_key value")
 	}
@@ -137,7 +181,7 @@ func TestFlagLoaderWithKeyPrefix(t *testing.T) {
 		t.Errorf("unexpected value for session key: '%s'", sessionKeyLookup)
 	}
 
-	logLevel, found := l.Get(logLevelKey)
+	logLevel, found := l.Get(logFieldSet, logLevelKey)
 	if !found {
 		t.Errorf("unexpected problem getting log_level value")
 	}
@@ -146,7 +190,7 @@ func TestFlagLoaderWithKeyPrefix(t *testing.T) {
 		t.Errorf("unexpected value for log level: '%s'", logLevel)
 	}
 
-	cloneSessionKeyLookup, cloneFound := clone.Get(sessionKey)
+	cloneSessionKeyLookup, cloneFound := clone.Get(sessionFieldSet, sessionTokenKey)
 	if !cloneFound {
 		t.Errorf("unexpected problem getting session_key value from loader clone")
 	}

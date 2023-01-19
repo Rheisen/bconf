@@ -1,0 +1,11 @@
+{
+    "app": {
+        "id": "test-app-id",
+        "secret": "sensitive-secret"
+    },
+    "log": {
+        "level": "info"
+    },
+    "app_id": "invalid-app-id",
+    "strange_key": "strange-value"
+}

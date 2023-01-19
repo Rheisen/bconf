@@ -6,8 +6,7 @@
 [![Build Status](https://github.com/rheisen/bconf/actions/workflows/golang-test.yml/badge.svg?branch=main)](https://github.com/rheisen/bconf/actions/workflows/golang-test.yml)
 [![codecov.io](https://codecov.io/github/rheisen/bconf/coverage.svg?branch=main)](https://codecov.io/github/rheisen/bconf?branch=main)
 
-`bconf` is an opinionated configuration framework that makes it easy to define, load, and validate application 
-configuration values.
+`bconf` is a configuration framework that makes it easy to define, load, and validate application configuration values.
 
 ```sh
 go get github.com/rheisen/bconf
@@ -17,13 +16,55 @@ go get github.com/rheisen/bconf
 
 `bconf` provides tooling to write your configuration package by package. With `bconf`, configuration lives right
 alongside the code that needs it. This makes it so that configuration is more easily re-used and composible by
-multiple applications, just like your packages should be.
+multiple applications (just like your packages should be).
 
 `bconf` accomplishes this with `bconf.FieldSets`, which provide a namespace and logical grouping for related
 configuration. Independent packages define their `bconf.FieldSets`, and then application executables can attach them
 to a `bconf.AppConfig`, which provides a unified structure for loading and retrieving configuration values.
 
-Check out the introductory examples below, and see if `bconf` is right for your project.
+Within `bconf.FieldSets`, you define `bconf.Fields`, with each field defining the expected format and behavior of a
+configuration value.
+
+Check out the documentation and introductory examples below, and see if `bconf` is right for your project!
+
+### Supported Configuration Sources
+
+* Environment (`bconf.EnvironmentLoader`)
+* Flags (`bconf.FlagLoader`)
+* JSON files (`bconf.JSONFileLoader`)
+* Overrides (setter functions)
+
+In Progress
+
+* YAML files (`bconf.YAMLFileLoader`)
+* TOML files (`bconf.TOMLFileLoader`)
+
+### Getting Values from `bconf.AppConfig`
+
+* `GetField(fieldSetKey, fieldKey string) (*bconf.Field, error)`
+* `GetString(fieldSetKey, fieldKey string) (string, error)`
+* `GetStrings(fieldSetKey, fieldKey string) ([]string, error)`
+* `GetInt(fieldSetKey, fieldKey string) (int, error)`
+* `GetInts(fieldSetKey, fieldKey string) ([]int, error)`
+* `GetBool(fieldSetKey, fieldKey string) (bool, error)`
+* `GetBools(fieldSetKey, fieldKey string) ([]bool, error)`
+* `GetTime(fieldSetKey, fieldKey string) (time.Time, error)`
+* `GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error)`
+* `GetDuration(fieldSetKey, fieldKey string) (time.Duration, error)`
+* `GetDurations(fieldSetKey, fieldKey string) ([]time.Duration, error)`
+
+### Additional Features
+
+* Ability to generate default configuration values with the `bconf.Field` `DefaultGenerator` parameter
+* Ability to define custom configuration value validation with the `bconf.Field` `Validator` parameter
+* Ability to conditionally load `bconf.FieldSets` by defining `bconf.LoadConditions`
+* Ability to get a safe map of configuration values from the `bconf.AppConfig` `ConfigMap()` function
+  * (the configuration map will obfuscate values from fields with `Sensitive` parameter set to `true`)
+* Ability to reload field-sets and individual fields via the `bconf.AppConfig`
+
+### Limitations
+
+* No support for watching / automatically updating configuration values
 
 ### Example
 
@@ -239,15 +280,7 @@ This is a simple example where all the configuration code is in one place, but i
 To view more examples, including a real-world example showcasing how configuration can live alongside package code,
 please visit [github.com/rheisen/bconf-examples](https://github.com/rheisen/bconf-examples).
 
-### Features
+### Roadmap Features / Improvements
 
-* Ability to generate default configuration values with the `bconf.Field` `DefaultGenerator` function
-* Flexible configuration value validation with the `bconf.Field` `Validator` function
-* Load configuration values from environment and flags
-* Ability to conditionally load `bconf.FieldSets` via flexible `bconf.LoadConditions`
-
-### Limitations
-
-* No support for loading configuration values from JSON or YAML files (although a JSON or YAML file loader can be
-given to `bconf` so long as it follows the `bconf.Loader` interface)
-* No support for watching / automatically updating configuration values
+* Additional `-h` / `--help` options
+* Additional configuration loaders

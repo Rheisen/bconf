@@ -19,7 +19,7 @@ type FlagLoader struct {
 	OverrideLookup []string
 }
 
-func (l *FlagLoader) Clone() Loader {
+func (l *FlagLoader) Clone() *FlagLoader {
 	clone := *l
 
 	if len(l.OverrideLookup) > 0 {
@@ -29,14 +29,18 @@ func (l *FlagLoader) Clone() Loader {
 	return &clone
 }
 
+func (l *FlagLoader) CloneLoader() Loader {
+	return l.Clone()
+}
+
 func (l *FlagLoader) Name() string {
 	return "bconf_flags"
 }
 
-func (l *FlagLoader) Get(key string) (string, bool) {
+func (l *FlagLoader) Get(fieldSetKey, fieldKey string) (string, bool) {
 	values := l.flagValues()
 
-	value, found := values[key]
+	value, found := values[fmt.Sprintf("%s_%s", fieldSetKey, fieldKey)]
 	if found {
 		return value, true
 	}
@@ -44,14 +48,23 @@ func (l *FlagLoader) Get(key string) (string, bool) {
 	return "", false
 }
 
-// func (l *FlagLoader) GetMap(keys []string) map[string]string {
-// 	values := map[string]string{}
+func (l *FlagLoader) GetMap(fieldSetKey string, fieldKeys []string) map[string]string {
+	values := map[string]string{}
 
-// 	return values
-// }
+	flagValues := l.flagValues()
 
-func (l *FlagLoader) HelpString(key string) string {
-	return fmt.Sprintf("Flag argument: '--%s'", l.flagKey(key))
+	for _, fieldKey := range fieldKeys {
+		value, found := flagValues[fmt.Sprintf("%s_%s", fieldSetKey, fieldKey)]
+		if found {
+			values[fieldKey] = value
+		}
+	}
+
+	return values
+}
+
+func (l *FlagLoader) HelpString(fieldSetKey, fieldKey string) string {
+	return fmt.Sprintf("Flag argument: '--%s'", l.flagKey(fmt.Sprintf("%s_%s", fieldSetKey, fieldKey)))
 }
 
 func (l *FlagLoader) flagKey(key string) string {
