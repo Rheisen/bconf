@@ -98,12 +98,7 @@ func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps *[]m
 			continue
 		}
 
-		valueString, ok := value.(string)
-		if !ok {
-			continue
-		}
-
-		return valueString, true
+		return fmt.Sprint(value), true
 	}
 
 	return "", false

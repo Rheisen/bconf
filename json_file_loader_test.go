@@ -86,6 +86,15 @@ func TestJSONFileLoaderGet(t *testing.T) {
 		t.Fatalf("unexpected appID value '%s', expected 'test-app-id'", appID)
 	}
 
+	appPort, found := loaderFixture01.Get("app", "port")
+	if !found {
+		t.Fatalf("expected loader with fixture file to find appPort value")
+	}
+
+	if appPort != "8080" {
+		t.Fatalf("unexpected appPort value '%s', expected '8080'", appPort)
+	}
+
 	_, found = loaderNoFilePaths.Get("app", "id")
 	if found {
 		t.Fatalf("unexpected appID found by loader with no file-paths")

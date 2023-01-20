@@ -1,7 +1,8 @@
 {
     "app": {
         "id": "test-app-id",
-        "secret": "sensitive-secret"
+        "secret": "sensitive-secret",
+        "port": 8080
     },
     "log": {
         "level": "info"
