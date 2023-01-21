@@ -105,9 +105,11 @@ func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps *[]m
 		if strings.HasPrefix(valueString, "[") && strings.HasSuffix(valueString, "]") {
 			valueString = valueString[1 : len(valueString)-1]
 			valueStringSlice := strings.Split(valueString, ",")
+
 			for index, val := range valueStringSlice {
 				valueStringSlice[index] = strings.Trim(val, "\"")
 			}
+
 			valueString = strings.Join(valueStringSlice, ",")
 		} else {
 			valueString = strings.Trim(valueString, "\"")

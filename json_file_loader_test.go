@@ -86,12 +86,12 @@ func TestJSONFileLoaderGet(t *testing.T) {
 		t.Fatalf("unexpected appID value '%s', expected 'test-app-id'", appID)
 	}
 
-	internalPorts, found := loaderFixture01.Get("app", "port")
+	internalPorts, found := loaderFixture01.Get("app", "internal_ports")
 	if !found {
 		t.Fatalf("expected loader with fixture file to find internalPorts value")
 	}
 
-	if internalPorts != "8080" {
+	if internalPorts != "8081,8082" {
 		t.Fatalf("unexpected appPort value '%s', expected '8080'", internalPorts)
 	}
 
