@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // type JSONMarshal func(v interface{}) ([]byte, error)
@@ -98,7 +99,21 @@ func (l *JSONFileLoader) findValueInMaps(fieldSetKey, fieldKey string, maps *[]m
 			continue
 		}
 
-		return fmt.Sprint(value), true
+		bytes, _ := json.Marshal(value)
+		valueString := string(bytes)
+
+		if strings.HasPrefix(valueString, "[") && strings.HasSuffix(valueString, "]") {
+			valueString = valueString[1 : len(valueString)-1]
+			valueStringSlice := strings.Split(valueString, ",")
+			for index, val := range valueStringSlice {
+				valueStringSlice[index] = strings.Trim(val, "\"")
+			}
+			valueString = strings.Join(valueStringSlice, ",")
+		} else {
+			valueString = strings.Trim(valueString, "\"")
+		}
+
+		return valueString, true
 	}
 
 	return "", false

@@ -2,7 +2,9 @@
     "app": {
         "id": "test-app-id",
         "secret": "sensitive-secret",
-        "port": 8080
+        "port": 8080,
+        "internal_ports": [8081, 8082],
+        "some_key": ["what if", "a list", "of strings"]
     },
     "log": {
         "level": "info"
