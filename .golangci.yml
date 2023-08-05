@@ -18,6 +18,23 @@ linters-settings:
   nolintlint:
     require-explanation: true
     require-specific: true
+  depguard:
+    rules:
+      main:
+        files:
+          - $all
+          - "!$test"
+        allow:
+          - $gostd
+          - github.com/rheisen/bconf
+          - github.com/rheisen/bconf/bconfconst
+      test:
+        files:
+          - $test
+        allow:
+          - $gostd
+          - github.com/rheisen/bconf
+          - github.com/rheisen/bconf/bconfconst
 
 linters:
   disable-all: true

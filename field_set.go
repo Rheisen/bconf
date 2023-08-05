@@ -84,7 +84,6 @@ func (f *FieldSet) initializeFieldMap() {
 	}
 
 	f.fieldMap = fieldMap
-	f.Fields = nil
 }
 
 // generateFieldDefaults runs field default generators exactly once. Multiple calls will not regenerate field defaults.

@@ -127,7 +127,7 @@ func TestAppConfig(t *testing.T) {
 		Fields: bconf.Fields{
 			{
 				Key:         "id",
-				Type:        bconfconst.String,
+				Type:        bconf.String,
 				Description: "Application identifier for use in application log messages and tracing",
 				DefaultGenerator: func() (any, error) {
 					return appGeneratedID, nil
@@ -135,13 +135,13 @@ func TestAppConfig(t *testing.T) {
 			},
 			{
 				Key:         "read_timeout",
-				Type:        bconfconst.Duration,
+				Type:        bconf.Duration,
 				Description: "Application read timeout for HTTP requests",
 				Default:     5 * time.Second,
 			},
 			{
 				Key:     "connect_sqlite",
-				Type:    bconfconst.Bool,
+				Type:    bconf.Bool,
 				Default: true,
 			},
 		},
@@ -402,6 +402,117 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 
 	if errs := appConfig.AddFieldSet(fieldSetWithInvalidLoadCondition); len(errs) < 1 {
 		t.Fatalf("expected error adding field set with invalid load condition")
+	}
+}
+
+func TestAppConfigWithFieldLoadConditions(t *testing.T) {
+	appConfig := createBaseAppConfig()
+
+	const fieldSetOneKey = "one"
+
+	const fieldSetTwoKey = "two"
+
+	const fieldSetThreeKey = "three"
+
+	const fieldSetFourKey = "four"
+
+	const fieldAKey = "a"
+
+	const fieldBKey = "b"
+
+	const fieldCKey = "c"
+
+	const fieldDKey = "d"
+
+	const fieldEKey = "e"
+
+	const fieldFKey = "f"
+
+	const fieldGKey = "g"
+
+	const fieldBEnvValue = "some_str"
+
+	const fieldDEnvValue = "should_not_load"
+
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", fieldSetOneKey, fieldBKey)), fieldBEnvValue)
+	os.Setenv(strings.ToUpper(fmt.Sprintf("%s_%s", fieldSetOneKey, fieldDKey)), fieldDEnvValue)
+	// test field load condition w/ invalid field-set key
+	// test help string output with no field-set key
+	// test help string output with field-set key
+
+	fieldSetWithInternalFieldDependencies := bconf.FSB().Key(fieldSetOneKey).Fields(
+		bconf.FB().Key(fieldAKey).Type(bconf.String).Default("postgres").Create(),
+		bconf.FB().Key(fieldBKey).Type(bconf.String).LoadConditions(
+			bconf.FCB().FieldKey(fieldAKey).Condition(func(val any) (bool, error) {
+				return true, nil
+			}).Create(),
+		).Create(),
+		bconf.FB().Key(fieldCKey).Type(bconf.String).LoadConditions(
+			bconf.
+				FCB().
+				FieldKey(fieldAKey).
+				FieldSetKey(fieldSetOneKey).
+				Condition(func(val any) (bool, error) {
+					return true, nil
+				}).Create(),
+		).Create(),
+		bconf.FB().Key(fieldDKey).Type(bconf.String).Default("should_not_be_overridden").LoadConditions(
+			bconf.FCB().FieldKey(fieldAKey).Condition(func(val any) (bool, error) {
+				return false, nil
+			}).Create(),
+		).Create(),
+	).Create()
+
+	fieldSetWithOtherFieldSetDependencies := bconf.FSB().Key(fieldSetTwoKey).Fields(
+		bconf.FB().Key(fieldEKey).Type(bconf.String).Create(),
+	).Create()
+
+	errs := appConfig.AddFieldSets(fieldSetWithInternalFieldDependencies, fieldSetWithOtherFieldSetDependencies)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected error(s) adding field-sets: %v", errs)
+	}
+
+	if errs := appConfig.Register(false); len(errs) > 0 {
+		t.Fatalf("unexpected error(s) loading field set with valid load condition and required field: %v", errs)
+	}
+
+	foundBValue, _ := appConfig.GetString(fieldSetOneKey, fieldBKey)
+	if foundBValue != fieldBEnvValue {
+		t.Errorf("unexpected value found for field B: '%s'", foundBValue)
+	}
+
+	foundDValue, _ := appConfig.GetString(fieldSetOneKey, fieldDKey)
+	if foundDValue == fieldDEnvValue {
+		t.Errorf("unexpected value found for field D: '%s'", fieldDEnvValue)
+	}
+
+	fieldSetWithMissingInternalFieldDependencies := bconf.FSB().Key(fieldSetThreeKey).Fields(
+		bconf.FB().Key(fieldFKey).Type(bconf.String).Create(),
+		bconf.FB().Key(fieldGKey).Type(bconf.String).LoadConditions(
+			bconf.FCB().FieldKey(fieldAKey).Condition(func(val any) (bool, error) {
+				return true, nil
+			}).Create(),
+		).Create(),
+	).Create()
+
+	fieldSetWithMissingExternalFieldDependencies := bconf.FSB().Key(fieldSetFourKey).Fields(
+		bconf.FB().Key(fieldAKey).Type(bconf.String).LoadConditions(
+			bconf.FCB().FieldSetKey("missing").FieldKey(fieldBKey).Condition(func(val any) (bool, error) {
+				return true, nil
+			}).Create(),
+		).Create(),
+	).Create()
+
+	if errs := appConfig.AddFieldSets(fieldSetWithMissingInternalFieldDependencies); len(errs) < 1 {
+		t.Fatalf("expected error adding field set with missing internal field dependencies")
+	} else if !strings.Contains(errs[0].Error(), "field-set field not found") {
+		t.Errorf("unexpected error adding field set with missing internal field dependencies: '%s'", errs[0])
+	}
+
+	if errs := appConfig.AddFieldSet(fieldSetWithMissingExternalFieldDependencies); len(errs) < 1 {
+		t.Fatalf("expected error adding field set with missing external field dependencies")
+	} else if !strings.Contains(errs[0].Error(), "field-set dependency not found") {
+		t.Errorf("unexpected error adding field set with missing external field dependencies: '%s'", errs[0])
 	}
 }
 

@@ -10,34 +10,38 @@ import (
 	"github.com/rheisen/bconf/bconfconst"
 )
 
+// Fields is a slice of Field elements providing context for configuration values
 type Fields []*Field
 
+// Field is a data structure that provides context for a configuration value
 type Field struct {
-	// fieldValue contains a mapping of loader names to field value.
+	// fieldValue contains a mapping of loader names to field value
 	fieldValue map[string]any
-	// Validator defines a function that runs during validation to check a value against validity constraints.
+	// Validator defines a function that runs during validation to check a value against validity constraints
 	Validator func(value any) error
-	// DefaultGenerator defines a function that creates a base value for a field.
+	// DefaultGenerator defines a function that creates a base value for a field
 	DefaultGenerator func() (any, error)
-	// Default defines a base value for a field.
+	// Default defines a base value for a field
 	Default any
-	// generatedDefault tracks the value generated from the default generator function.
+	// generatedDefault tracks the value generated from the default generator function
 	generatedDefault any
-	// overrideValue tracks a user set field value.
+	// overrideValue tracks a user set field value
 	overrideValue any
-	// Key is a required field that defines the field lookup value.
+	// Key is a required field that defines the field lookup value
 	Key string
-	// Type is a required field that defines the type of value the field contains.
+	// Type is a required field that defines the type of value the field contains
 	Type string
-	// Description defines a summary of the field contents.
+	// Description defines a summary of the field contents
 	Description string
-	// Enumeration defines a list of acceptable inputs for the field value.
+	// Enumeration defines a list of acceptable inputs for the field value
 	Enumeration []any
-	// fieldFound is a reverse priority list of where field values were found, e.g. last value has highest priority.
+	// LoadConditions defines the conditions required for a field to load values
+	LoadConditions LoadConditions
+	// fieldFound is a reverse priority list of where field values were found, e.g. last value has highest priority
 	fieldFound []string
-	// Required defines whether a field value must be set in order for the field to be valid.
+	// Required defines whether a field value must be set in order for the field to be valid
 	Required bool
-	// Sensitive identifies the field value as sensitive.
+	// Sensitive identifies the field value as sensitive
 	Sensitive bool
 }
 
@@ -55,6 +59,14 @@ func (f *Field) Clone() *Field {
 
 		for key, value := range f.fieldValue {
 			clone.fieldValue[key] = value
+		}
+	}
+
+	if len(f.LoadConditions) > 0 {
+		clone.LoadConditions = make(LoadConditions, len(f.LoadConditions))
+
+		for idx, value := range f.LoadConditions {
+			clone.LoadConditions[idx] = value.Clone()
 		}
 	}
 
@@ -93,7 +105,7 @@ func (f *Field) validate() []error {
 
 	fieldTypeFound := false
 
-	for _, fieldType := range bconfconst.FieldTypes() {
+	for _, fieldType := range FieldTypes() {
 		if fieldType != f.Type {
 			continue
 		}
@@ -340,25 +352,25 @@ func (f *Field) setOverride(value any) error {
 
 func (f *Field) parseString(value string) (any, error) {
 	switch f.Type {
-	case bconfconst.String:
+	case String:
 		return value, nil
-	case bconfconst.Strings:
+	case Strings:
 		return f.parseToStrings(value), nil
-	case bconfconst.Bool:
+	case Bool:
 		return strconv.ParseBool(value)
-	case bconfconst.Bools:
+	case Bools:
 		return f.parseToBools(value)
-	case bconfconst.Int:
+	case Int:
 		return strconv.Atoi(value)
-	case bconfconst.Ints:
+	case Ints:
 		return f.parseToInts(value)
-	case bconfconst.Time:
+	case Time:
 		return time.Parse(time.RFC3339, value)
-	case bconfconst.Times:
+	case Times:
 		return f.parseToTimes(value)
-	case bconfconst.Duration:
+	case Duration:
 		return time.ParseDuration(value)
-	case bconfconst.Durations:
+	case Durations:
 		return f.parseToDurations(value)
 	default:
 		return "", fmt.Errorf("unsupported field type: %s", f.Type)

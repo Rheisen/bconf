@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/rheisen/bconf/bconfconst"
 )
 
 func NewAppConfig(appName, appDescription string) *AppConfig {
@@ -101,7 +99,9 @@ func (c *AppConfig) AddField(fieldSetKey string, field *Field) []error {
 	c.fieldSetLock.Lock()
 	defer c.fieldSetLock.Unlock()
 
-	if _, keyFound := c.fieldSets[fieldSetKey]; !keyFound {
+	fieldSet, fieldSetFound := c.fieldSets[fieldSetKey]
+
+	if !fieldSetFound {
 		return []error{fmt.Errorf("no field-set found with key '%s'", fieldSetKey)}
 	}
 
@@ -117,6 +117,10 @@ func (c *AppConfig) AddField(fieldSetKey string, field *Field) []error {
 
 	if validationErrors := field.validate(); len(validationErrors) > 0 {
 		return validationErrors
+	}
+
+	if err := c.checkForFieldDependencies(field, fieldSet); err != nil {
+		return []error{fmt.Errorf("field default value generation error: %w", err)}
 	}
 
 	c.fieldSets[fieldSetKey].fieldMap[field.Key] = field
@@ -151,6 +155,14 @@ func (c *AppConfig) LoadField(fieldSetKey, fieldKey string) []error {
 	field, fieldKeyFound := c.fieldSets[fieldSetKey].fieldMap[fieldKey]
 	if !fieldKeyFound {
 		errs = append(errs, fmt.Errorf("field with key '%s' not found", fieldKey))
+		return errs
+	}
+
+	if load, err := c.shouldLoadField(field, fieldSetKey); err != nil {
+		errs = append(errs, err)
+		return errs
+	} else if !load {
+		errs = append(errs, fmt.Errorf("field load-conditions not met"))
 		return errs
 	}
 
@@ -243,7 +255,7 @@ func (c *AppConfig) ConfigMap() map[string]map[string]any {
 				continue
 			}
 
-			if field.Type == bconfconst.Duration {
+			if field.Type == Duration {
 				val = val.(time.Duration).Milliseconds()
 				fieldSetMap[fmt.Sprintf("%s_ms", field.Key)] = val
 
@@ -303,7 +315,7 @@ func (c *AppConfig) GetField(fieldSetKey, fieldKey string) (*Field, error) {
 }
 
 func (c *AppConfig) GetString(fieldSetKey, fieldKey string) (string, error) {
-	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.String)
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, String)
 	if err != nil {
 		return "", err
 	}
@@ -314,7 +326,7 @@ func (c *AppConfig) GetString(fieldSetKey, fieldKey string) (string, error) {
 }
 
 func (c *AppConfig) GetStrings(fieldSetKey, fieldKey string) ([]string, error) {
-	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Strings)
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Strings)
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +337,7 @@ func (c *AppConfig) GetStrings(fieldSetKey, fieldKey string) ([]string, error) {
 }
 
 func (c *AppConfig) GetInt(fieldSetKey, fieldKey string) (int, error) {
-	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Int)
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Int)
 	if err != nil {
 		return 0, err
 	}
@@ -336,7 +348,7 @@ func (c *AppConfig) GetInt(fieldSetKey, fieldKey string) (int, error) {
 }
 
 func (c *AppConfig) GetInts(fieldSetKey, fieldKey string) ([]int, error) {
-	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Ints)
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Ints)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +359,7 @@ func (c *AppConfig) GetInts(fieldSetKey, fieldKey string) ([]int, error) {
 }
 
 func (c *AppConfig) GetBool(fieldSetKey, fieldKey string) (bool, error) {
-	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Bool)
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Bool)
 	if err != nil {
 		return false, err
 	}
@@ -358,7 +370,7 @@ func (c *AppConfig) GetBool(fieldSetKey, fieldKey string) (bool, error) {
 }
 
 func (c *AppConfig) GetBools(fieldSetKey, fieldKey string) ([]bool, error) {
-	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Bools)
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Bools)
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +381,7 @@ func (c *AppConfig) GetBools(fieldSetKey, fieldKey string) ([]bool, error) {
 }
 
 func (c *AppConfig) GetTime(fieldSetKey, fieldKey string) (time.Time, error) {
-	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Time)
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Time)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -380,7 +392,7 @@ func (c *AppConfig) GetTime(fieldSetKey, fieldKey string) (time.Time, error) {
 }
 
 func (c *AppConfig) GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error) {
-	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Times)
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Times)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +403,7 @@ func (c *AppConfig) GetTimes(fieldSetKey, fieldKey string) ([]time.Time, error) 
 }
 
 func (c *AppConfig) GetDuration(fieldSetKey, fieldKey string) (time.Duration, error) {
-	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Duration)
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Duration)
 	if err != nil {
 		return 0, err
 	}
@@ -402,7 +414,7 @@ func (c *AppConfig) GetDuration(fieldSetKey, fieldKey string) (time.Duration, er
 }
 
 func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration, error) {
-	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, bconfconst.Durations)
+	fieldValue, err := c.getFieldValue(fieldSetKey, fieldKey, Durations)
 	if err != nil {
 		return nil, err
 	}
@@ -430,11 +442,11 @@ func (c *AppConfig) addFieldSet(fieldSet *FieldSet, lock bool) []error {
 		return []error{fmt.Errorf("duplicate field-set key found: '%s'", fieldSet.Key)}
 	}
 
+	fieldSet.initializeFieldMap()
+
 	if errs := c.checkForFieldSetDependencies(fieldSet); len(errs) > 0 {
 		return errs
 	}
-
-	fieldSet.initializeFieldMap()
 
 	if errs := c.generateFieldSetDefaultValues(fieldSet); len(errs) > 0 {
 		return errs
@@ -443,6 +455,8 @@ func (c *AppConfig) addFieldSet(fieldSet *FieldSet, lock bool) []error {
 	if errs := c.checkForFieldSetFieldsValidity(fieldSet); len(errs) > 0 {
 		return errs
 	}
+
+	fieldSet.Fields = nil
 
 	c.fieldSets[fieldSet.Key] = fieldSet
 	c.orderedFieldSets = append(c.orderedFieldSets, fieldSet)
@@ -493,7 +507,52 @@ func (c *AppConfig) checkForFieldSetDependencies(fieldSet *FieldSet) []error {
 		}
 	}
 
+	for _, field := range fieldSet.Fields {
+		if err := c.checkForFieldDependencies(field, fieldSet); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	return errs
+}
+
+func (c *AppConfig) checkForFieldDependencies(field *Field, parent *FieldSet) error {
+	if len(field.LoadConditions) > 0 {
+		for _, loadCondition := range field.LoadConditions {
+			var fieldSetDependency *FieldSet
+
+			var found bool
+
+			fieldSetKey, fieldKey := loadCondition.FieldDependency()
+
+			if fieldSetKey == "" && fieldKey == "" {
+				continue
+			}
+
+			if fieldSetKey == "" || fieldSetKey == parent.Key {
+				fieldSetKey = parent.Key
+				fieldSetDependency = parent
+			} else {
+				fieldSetDependency, found = c.fieldSets[fieldSetKey]
+
+				if !found {
+					return fmt.Errorf(
+						"field-set '%s' field '%s' field-set dependency not found: %s",
+						fieldSetKey, field.Key, fieldSetKey,
+					)
+				}
+			}
+
+			if _, found = fieldSetDependency.fieldMap[fieldKey]; !found {
+				return fmt.Errorf(
+					"field-set '%s' field '%s' field-set field not found: %s_%s",
+					parent.Key, field.Key, fieldSetKey, fieldKey,
+				)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (c *AppConfig) generateFieldSetDefaultValues(fieldSet *FieldSet) []error {
@@ -544,6 +603,15 @@ func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
 	for _, loader := range c.loaders {
 		values := loader.GetMap(fieldSetKey, c.fieldSets[fieldSetKey].fieldKeys())
 		for key, value := range values {
+			field := c.fieldSets[fieldSetKey].fieldMap[key]
+
+			if load, err := c.shouldLoadField(field, fieldSetKey); err != nil {
+				errs = append(errs, err)
+				continue
+			} else if !load {
+				continue
+			}
+
 			if err := c.fieldSets[fieldSetKey].fieldMap[key].set(loader.Name(), value); err != nil {
 				errs = append(errs, fmt.Errorf("field '%s' load error: %w", key, err))
 			}
@@ -599,6 +667,48 @@ func (c *AppConfig) shouldLoadFieldSet(fieldSet *FieldSet) (bool, error) {
 	return loadFieldSet, nil
 }
 
+func (c *AppConfig) shouldLoadField(field *Field, fieldSetKey string) (bool, error) {
+	loadField := true
+
+	if len(field.LoadConditions) > 0 {
+		for _, loadCondition := range field.LoadConditions {
+			if !loadField {
+				break
+			}
+
+			conditionFieldSetKey, conditionFieldSetFieldKey := loadCondition.FieldDependency()
+			if conditionFieldSetKey == "" {
+				conditionFieldSetKey = fieldSetKey
+			}
+
+			if conditionFieldSetKey != "" && conditionFieldSetFieldKey != "" {
+				fieldValue, err := c.getFieldValue(conditionFieldSetKey, conditionFieldSetFieldKey, "any")
+				if err != nil {
+					return false, fmt.Errorf("problem getting field value for load condition: %w", err)
+				}
+
+				loadField, err = loadCondition.Load(fieldValue)
+				if err != nil {
+					return false, fmt.Errorf("problem getting load condition outcome: %w", err)
+				}
+
+				continue
+			}
+
+			var err error
+
+			loadField, err = loadCondition.Load(nil)
+			if err != nil {
+				return false, fmt.Errorf("problem getting load condition outcome: %w", err)
+			}
+
+			continue
+		}
+	}
+
+	return loadField, nil
+}
+
 func (c *AppConfig) getFieldValue(fieldSetKey, fieldKey, expectedType string) (any, error) {
 	field, err := c.GetField(fieldSetKey, fieldKey)
 	if err != nil {
@@ -632,6 +742,10 @@ func (c *AppConfig) fields() map[string]*fieldEntry {
 
 			if len(fieldSet.LoadConditions) > 0 {
 				entry.loadConditions = fieldSet.LoadConditions
+			}
+
+			if len(field.LoadConditions) > 0 {
+				entry.loadConditions = append(entry.loadConditions, field.LoadConditions...)
 			}
 
 			fields[fmt.Sprintf("%s_%s", fieldSetKey, field.Key)] = &entry
@@ -675,7 +789,7 @@ func (c *AppConfig) addFieldsToBuilder(builder *strings.Builder) {
 			builder.WriteString("Required Configuration:\n")
 
 			for _, key := range requiredFields {
-				builder.WriteString(fmt.Sprintf("\t%s", c.fieldHelpString(fields, key)))
+				fmt.Fprintf(builder, "\t%s", c.fieldHelpString(fields, key))
 			}
 		}
 
@@ -683,7 +797,7 @@ func (c *AppConfig) addFieldsToBuilder(builder *strings.Builder) {
 			builder.WriteString("Conditionally Required Configuration:\n")
 
 			for _, key := range conditionallyRequiredFields {
-				builder.WriteString(fmt.Sprintf("\t%s", c.fieldHelpString(fields, key)))
+				fmt.Fprintf(builder, "\t%s", c.fieldHelpString(fields, key))
 			}
 		}
 
@@ -691,7 +805,7 @@ func (c *AppConfig) addFieldsToBuilder(builder *strings.Builder) {
 			builder.WriteString("Optional Configuration:\n")
 
 			for _, key := range optionalFields {
-				builder.WriteString(fmt.Sprintf("\t%s", c.fieldHelpString(fields, key)))
+				fmt.Fprintf(builder, "\t%s", c.fieldHelpString(fields, key))
 			}
 		}
 	}

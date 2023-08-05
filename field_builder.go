@@ -40,6 +40,13 @@ func (b *FieldBuilder) DefaultGenerator(value func() (any, error)) *FieldBuilder
 	return b
 }
 
+func (b *FieldBuilder) LoadConditions(value ...LoadCondition) *FieldBuilder {
+	b.init()
+	b.field.LoadConditions = value
+
+	return b
+}
+
 func (b *FieldBuilder) Type(value string) *FieldBuilder {
 	b.init()
 	b.field.Type = value
