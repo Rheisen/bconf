@@ -120,7 +120,7 @@ func (c *AppConfig) AddField(fieldSetKey string, field *Field) []error {
 	}
 
 	if err := c.checkForFieldDependencies(field, fieldSet); err != nil {
-		return []error{fmt.Errorf("field default value generation error: %w", err)}
+		return []error{fmt.Errorf("field dependency error: %w", err)}
 	}
 
 	c.fieldSets[fieldSetKey].fieldMap[field.Key] = field

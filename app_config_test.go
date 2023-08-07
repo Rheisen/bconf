@@ -562,7 +562,7 @@ func TestAppConfigAddField(t *testing.T) {
 	idFieldGeneratedDefaultValue := "generated-default-value"
 	idField := &bconf.Field{
 		Key:         idFieldKey,
-		Type:        bconfconst.String,
+		Type:        bconf.String,
 		Description: "Application identifier for use in application log messages and tracing",
 		DefaultGenerator: func() (any, error) {
 			return idFieldGeneratedDefaultValue, nil
@@ -571,7 +571,7 @@ func TestAppConfigAddField(t *testing.T) {
 
 	fieldWithGenerateDefaultError := &bconf.Field{
 		Key:  "field_generate_default_error",
-		Type: bconfconst.String,
+		Type: bconf.String,
 		DefaultGenerator: func() (any, error) {
 			return "", errors.New("generated error")
 		},
@@ -580,6 +580,14 @@ func TestAppConfigAddField(t *testing.T) {
 	fieldMissingFieldType := &bconf.Field{
 		Key: "field_missing_field_type",
 	}
+
+	fieldMissingLoadCondition := bconf.FB().Key("field_missing_load_condition").Type(bconf.String).LoadConditions(
+		bconf.FCB().FieldKey("missing_key").Condition(
+			func(val any) (bool, error) {
+				return true, nil
+			},
+		).Create(),
+	).Create()
 
 	if errs := appConfig.AddFieldSets(fieldSetOne); len(errs) > 0 {
 		t.Fatalf("unexpected error(s) adding field-sets: %v", errs)
@@ -603,6 +611,10 @@ func TestAppConfigAddField(t *testing.T) {
 
 	if errs := appConfig.AddField("one", fieldMissingFieldType); len(errs) < 1 {
 		t.Fatalf("expected error trying to add field with missing field-type")
+	}
+
+	if errs := appConfig.AddField("one", fieldMissingLoadCondition); len(errs) < 1 {
+		t.Fatalf("expected error trying to add field with missing load condition")
 	}
 }
 
@@ -655,6 +667,24 @@ func TestAppConfigLoadFieldSet(t *testing.T) {
 
 func TestAppConfigLoadField(t *testing.T) {
 	appConfig := createBaseAppConfig()
+
+	standardFieldSetC := bconf.FSB().Key("standard_c").Fields(
+		bconf.FB().Key("field_a").Type(bconf.String).Default("value_a").Create(),
+		bconf.FB().Key("field_b").Type(bconf.String).Create(),
+	).Create()
+
+	standardFieldSetD := bconf.FSB().Key("standard_d").Fields(
+		bconf.FB().Key("field_a").Type(bconf.String).Default("value_a").Create(),
+		bconf.FB().Key("field_b").Type(bconf.String).Create(),
+	).Create()
+
+	standardFieldSetE := bconf.FSB().Key("standard_e").Fields(
+		bconf.FB().Key("field_a").Type(bconf.String).Default("value_a").Create(),
+		bconf.FB().Key("field_b").Type(bconf.String).Create(),
+	).Create()
+
+	appConfig.AddFieldSets(standardFieldSetC, standardFieldSetD, standardFieldSetE)
+
 	appConfig.Register(false)
 
 	errs := appConfig.LoadField("unk_field_set_key", "unk_field_key")
@@ -681,6 +711,67 @@ func TestAppConfigLoadField(t *testing.T) {
 
 	if !strings.Contains(errs[0].Error(), "field with key 'unk_field_key' not found") {
 		t.Fatalf("unexpected error message: %s", errs[0])
+	}
+
+	addedFieldC := bconf.FB().Key("field_c").Type(bconf.String).LoadConditions(
+		bconf.FCB().FieldKey("field_b").Condition(func(val any) (bool, error) {
+			return true, nil
+		}).Create(),
+	).Create()
+
+	errs = appConfig.AddField("standard_c", addedFieldC)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected error adding field set to standard_c: %s", errs)
+	}
+
+	errs = appConfig.LoadField("standard_c", "field_c")
+	if len(errs) < 1 {
+		t.Fatalf("expected error adding field set with missing load condition field value")
+	}
+
+	if !strings.Contains(errs[0].Error(), "no value set for field") {
+		t.Errorf("unexpected error message: %s", errs[0])
+	}
+
+	// A test case for loading a field with a truthy field load condition
+	os.Setenv("STANDARD_D_FIELD_D", "expected_value")
+
+	addedFieldD := bconf.FB().Key("field_d").Type(bconf.String).LoadConditions(
+		bconf.FCB().FieldKey("field_a").Condition(func(val any) (bool, error) {
+			return true, nil
+		}).Create(),
+	).Create()
+
+	if errs := appConfig.AddField("standard_d", addedFieldD); len(errs) > 0 {
+		t.Fatalf("unexpected error adding field set to standard_d: %s", errs)
+	}
+
+	if errs := appConfig.LoadField("standard_d", "field_d"); len(errs) > 1 {
+		t.Fatalf("unexpected error loading field with truthy load condition: %s", errs)
+	}
+
+	foundValue, err := appConfig.GetString("standard_d", "field_d")
+	if err != nil {
+		t.Fatalf("unexpected error getting standard_d field_d value: %s", err)
+	}
+
+	if foundValue != "expected_value" {
+		t.Errorf("unexpected value loaded from field, expected 'expected_value', found: '%s'", foundValue)
+	}
+
+	// A test case for loading a field with a falsy field load condition
+	addedFieldE := bconf.FB().Key("field_e").Type(bconf.String).LoadConditions(
+		bconf.FCB().FieldKey("field_a").Condition(func(val any) (bool, error) {
+			return false, nil
+		}).Create(),
+	).Create()
+
+	if errs := appConfig.AddField("standard_e", addedFieldE); len(errs) > 0 {
+		t.Fatalf("unexpected error adding field set to standard_e: %s", errs)
+	}
+
+	if errs := appConfig.LoadField("standard_e", "field_e"); len(errs) < 1 {
+		t.Fatalf("expected error loading field with false load condition")
 	}
 }
 
