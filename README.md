@@ -15,7 +15,7 @@ go get github.com/rheisen/bconf
 ### Why `bconf`
 
 `bconf` provides tooling to write your configuration package by package. With `bconf`, configuration lives right
-alongside the code that needs it. This makes it so that configuration is more easily re-used and composible by
+alongside the code that needs it. This also makes it so that configuration is more easily re-used and composible by
 multiple applications (just like your packages should be).
 
 `bconf` accomplishes this with `bconf.FieldSets`, which provide a namespace and logical grouping for related
@@ -57,7 +57,8 @@ In Progress
 
 * Ability to generate default configuration values with the `bconf.Field` `DefaultGenerator` parameter
 * Ability to define custom configuration value validation with the `bconf.Field` `Validator` parameter
-* Ability to conditionally load `bconf.FieldSets` by defining `bconf.LoadConditions`
+* Ability to conditionally load a `bconf.FieldSet` by defining `bconf.LoadConditions`
+* Ability to conditionally load a `bconf.Field` by defining `bconf.LoadConditions`
 * Ability to get a safe map of configuration values from the `bconf.AppConfig` `ConfigMap()` function
   * (the configuration map will obfuscate values from fields with `Sensitive` parameter set to `true`)
 * Ability to reload field-sets and individual fields via the `bconf.AppConfig`

@@ -439,6 +439,7 @@ func TestAppConfigWithFieldLoadConditions(t *testing.T) {
 	// test field load condition w/ invalid field-set key
 	// test help string output with no field-set key
 	// test help string output with field-set key
+	// test conditionally required field cannot be unset
 
 	fieldSetWithInternalFieldDependencies := bconf.FSB().Key(fieldSetOneKey).Fields(
 		bconf.FB().Key(fieldAKey).Type(bconf.String).Default("postgres").Create(),

@@ -619,9 +619,19 @@ func (c *AppConfig) loadFieldSet(fieldSetKey string) []error {
 	}
 
 	for _, field := range fieldSet.fieldMap {
-		if field.Required {
+		if field.Required && len(field.LoadConditions) < 1 {
 			if _, err := field.getValue(); err != nil {
 				errs = append(errs, fmt.Errorf("required field '%s_%s' not set", fieldSet.Key, field.Key))
+			}
+		} else if field.Required {
+			if load, _ := c.shouldLoadField(field, fieldSet.Key); load {
+				if _, err := field.getValue(); err != nil {
+					errs = append(errs, fmt.Errorf(
+						"conditionally required field '%s_%s' load condition met, but field value not set",
+						fieldSet.Key,
+						field.Key,
+					))
+				}
 			}
 		}
 	}
