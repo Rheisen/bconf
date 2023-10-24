@@ -378,6 +378,10 @@ func (f *Field) parseString(value string) (any, error) {
 }
 
 func (f *Field) parseToStrings(value string) []string {
+	if value == "" {
+		return []string{}
+	}
+
 	list := strings.Split(value, ",")
 	values := make([]string, len(list))
 
