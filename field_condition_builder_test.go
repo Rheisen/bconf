@@ -35,14 +35,14 @@ func TestFieldConditionBuilderKeys(t *testing.T) {
 		t.Fatalf("unexpected field-set key value '%s', expected '%s'", fsKey, fieldSetKey)
 	}
 
-	condition = bconf.FCB().FieldKey(fieldKey).Create()
-	if _, fKey := condition.FieldDependency(); fKey != fieldKey {
-		t.Fatalf("unexpected field key value '%s', expected '%s'", fKey, fieldKey)
+	condition = bconf.FCB().AddFieldKey(fieldKey).Create()
+	if _, fKeys := condition.FieldDependency(); fKeys[0] != fieldKey {
+		t.Fatalf("unexpected field key value '%s', expected '%s'", fKeys[0], fieldKey)
 	}
 }
 
 func TestFieldConditionBuilderCondition(t *testing.T) {
-	condition := func(fieldValue any) (bool, error) {
+	condition := func(_ map[string]any) (bool, error) {
 		return true, nil
 	}
 	fieldCondition := bconf.FCB().Condition(condition).Create()
