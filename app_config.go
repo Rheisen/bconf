@@ -652,9 +652,10 @@ func (c *AppConfig) shouldLoadFieldSet(fieldSet *FieldSet) (bool, error) {
 				break
 			}
 
+			var err error
+
 			conditionFieldSetKey, conditionFieldSetFieldKeys := loadCondition.FieldDependency()
 			if conditionFieldSetKey != "" && len(conditionFieldSetFieldKeys) > 0 {
-				var err error
 				fieldValues := map[string]any{}
 
 				for _, conditionFieldSetFieldKey := range conditionFieldSetFieldKeys {
@@ -671,8 +672,6 @@ func (c *AppConfig) shouldLoadFieldSet(fieldSet *FieldSet) (bool, error) {
 
 				continue
 			}
-
-			var err error
 
 			loadFieldSet, err = loadCondition.Load(nil)
 			if err != nil {
@@ -700,8 +699,9 @@ func (c *AppConfig) shouldLoadField(field *Field, fieldSetKey string) (bool, err
 				conditionFieldSetKey = fieldSetKey
 			}
 
+			var err error
+
 			if conditionFieldSetKey != "" && len(conditionFieldSetFieldKeys) > 0 {
-				var err error
 				fieldValues := map[string]any{}
 
 				for _, conditionFieldSetFieldKey := range conditionFieldSetFieldKeys {
@@ -718,8 +718,6 @@ func (c *AppConfig) shouldLoadField(field *Field, fieldSetKey string) (bool, err
 
 				continue
 			}
-
-			var err error
 
 			loadField, err = loadCondition.Load(nil)
 			if err != nil {
