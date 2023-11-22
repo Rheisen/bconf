@@ -4,7 +4,7 @@ type LoadConditions []LoadCondition
 
 type LoadCondition interface {
 	Clone() LoadCondition
-	FieldDependency() (fieldSetKey string, fieldKey string)
-	Load(value any) (bool, error)
+	FieldDependency() (fieldSetKey string, fieldKeys []string)
+	Load(values map[string]any) (bool, error)
 	Validate() []error
 }
