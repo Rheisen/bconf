@@ -3,6 +3,7 @@ package bconf
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -422,6 +423,80 @@ func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration,
 	val, _ := fieldValue.([]time.Duration)
 
 	return val, nil
+}
+
+func (c *AppConfig) FillStruct(configStruct any) error {
+	defer func() error {
+		if r := recover(); r != nil {
+			return fmt.Errorf("problem filling struct: %s", r)
+		}
+
+		return nil
+	}()
+
+	if reflect.TypeOf(configStruct).Kind() != reflect.Pointer {
+		return fmt.Errorf("FillStruct expects a pointer to a struct, found '%s'", reflect.TypeOf(configStruct).Kind())
+	}
+
+	configStructValue := reflect.Indirect(reflect.ValueOf(configStruct))
+	configStructType := configStructValue.Type()
+
+	if configStructValue.Kind() != reflect.Struct {
+		return fmt.Errorf("FillStruct expects a pointer to a struct, found pointer to '%s'", configStructValue.Kind())
+	}
+
+	configStructField := configStructValue.FieldByName("ConfigStruct")
+	if !configStructField.IsValid() || configStructField.Type().PkgPath() != "github.com/rheisen/bconf" {
+		return fmt.Errorf("FillStruct expects a struct with a bconf.ConfigStruct field, none found")
+	}
+
+	configStructFieldType, _ := configStructType.FieldByName("ConfigStruct")
+
+	baseFieldSet := configStructFieldType.Tag.Get("bconf")
+
+	for i := 0; i < configStructValue.NumField(); i++ {
+		field := configStructType.Field(i)
+
+		if field.Name == "ConfigStruct" && field.Type.PkgPath() == "github.com/rheisen/bconf" {
+			continue
+		}
+
+		fieldTagValue := field.Tag.Get("bconf")
+
+		var fieldKey string
+
+		fieldSetKey := baseFieldSet
+
+		if fieldTagValue == "" {
+			fieldKey = field.Name
+		} else {
+			fieldTagParams := strings.Split(fieldTagValue, ",")
+			fieldLocation := strings.Split(fieldTagParams[0], ".")
+
+			fieldKey = fieldLocation[0]
+
+			// NOTE: error if fieldLocation format isn't <field>.<field-name> ?
+			if len(fieldLocation) > 1 {
+				fieldSetKey = fieldLocation[0]
+				fieldKey = fieldLocation[1]
+			}
+		}
+
+		appConfigField, err := c.GetField(fieldSetKey, fieldKey)
+		if err != nil {
+			return fmt.Errorf("problem getting field '%s.%s': %w", fieldSetKey, fieldKey, err)
+		}
+
+		val, err := appConfigField.getValue()
+		if err != nil {
+			return fmt.Errorf("problem getting field '%s.%s' value: %w", fieldSetKey, fieldKey, err)
+		}
+
+		configStructValue.Field(i).Set(reflect.ValueOf(val))
+		// fmt.Printf("'%s' Field (type: '%s') bconf tag value = '%s'\n", fieldName, field.Type, fieldTagValue)
+	}
+
+	return nil
 }
 
 // -- Private methods --

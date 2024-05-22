@@ -1586,6 +1586,59 @@ func TestAppConfigTimeFieldTypes(t *testing.T) {
 	}
 }
 
+func TestAppConfigFillStruct(t *testing.T) {
+	type TestAPIConfig struct {
+		bconf.ConfigStruct `bconf:"api"`
+		Host               string        `bconf:"host"`
+		Port               int           `bconf:"port"`
+		ReadTimeout        time.Duration `bconf:"read_timeout"`
+		DBSwitchTime       time.Time     `bconf:"db_switch_time"`
+		DebugMode          bool          `bconf:"debug_mode"`
+	}
+
+	type InvalidAPIConfigStruct struct {
+		Host string `bconf:"host"`
+		Port int    `bconf:"port"`
+	}
+
+	configStruct := &TestAPIConfig{}
+
+	appConfig := createBaseAppConfig()
+
+	errs := appConfig.AddFieldSet(
+		bconf.FSB().Key("api").Fields(
+			bconf.FB().Key("host").Type(bconf.String).Default("localhost").Create(),
+			bconf.FB().Key("port").Type(bconf.Int).Default(8080).Create(),
+			bconf.FB().Key("read_timeout").Type(bconf.Duration).Default(5*time.Second).Create(),
+			bconf.FB().Key("db_switch_time").Type(bconf.Time).Default(time.Now().Add(-100*time.Hour)).Create(),
+			bconf.FB().Key("debug_mode").Type(bconf.Bool).Default(true).Create(),
+		).Create(),
+	)
+
+	if len(errs) > 0 {
+		t.Fatalf("problem adding field set to AppConfig: %v\n", errs)
+	}
+
+	unfillableStruct := TestAPIConfig{}
+	if err := appConfig.FillStruct(unfillableStruct); err == nil {
+		t.Fatalf("expected error passing concrete struct\n")
+	}
+
+	notAStruct := 20
+	if err := appConfig.FillStruct(&notAStruct); err == nil {
+		t.Fatalf("expected error passing pointer to a non-struct type\n")
+	}
+
+	invalidConfigStruct := &InvalidAPIConfigStruct{}
+	if err := appConfig.FillStruct(invalidConfigStruct); err == nil {
+		t.Fatalf("expected error passing struct missing bconf.ConfigStruct field\n")
+	}
+
+	if err := appConfig.FillStruct(configStruct); err != nil {
+		t.Fatalf("problem setting struct values from AppConfig: %s\n", err)
+	}
+}
+
 func createBaseAppConfig() *bconf.AppConfig {
 	appConfig := bconf.NewAppConfig(
 		"app",
