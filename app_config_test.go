@@ -1589,10 +1589,10 @@ func TestAppConfigTimeFieldTypes(t *testing.T) {
 func TestAppConfigFillStruct(t *testing.T) {
 	type TestAPIConfig struct {
 		bconf.ConfigStruct `bconf:"api"`
-		Host               string        `bconf:"host"`
-		Port               int           `bconf:"port"`
-		ReadTimeout        time.Duration `bconf:"read_timeout"`
 		DBSwitchTime       time.Time     `bconf:"db_switch_time"`
+		Host               string        `bconf:"host"`
+		ReadTimeout        time.Duration `bconf:"read_timeout"`
+		Port               int           `bconf:"port"`
 		DebugMode          bool          `bconf:"debug_mode"`
 	}
 
@@ -1605,12 +1605,14 @@ func TestAppConfigFillStruct(t *testing.T) {
 
 	appConfig := createBaseAppConfig()
 
+	dbSwitchTime := time.Now().Add(-100 * time.Hour)
+
 	errs := appConfig.AddFieldSet(
 		bconf.FSB().Key("api").Fields(
 			bconf.FB().Key("host").Type(bconf.String).Default("localhost").Create(),
 			bconf.FB().Key("port").Type(bconf.Int).Default(8080).Create(),
 			bconf.FB().Key("read_timeout").Type(bconf.Duration).Default(5*time.Second).Create(),
-			bconf.FB().Key("db_switch_time").Type(bconf.Time).Default(time.Now().Add(-100*time.Hour)).Create(),
+			bconf.FB().Key("db_switch_time").Type(bconf.Time).Default(dbSwitchTime).Create(),
 			bconf.FB().Key("debug_mode").Type(bconf.Bool).Default(true).Create(),
 		).Create(),
 	)
@@ -1636,6 +1638,26 @@ func TestAppConfigFillStruct(t *testing.T) {
 
 	if err := appConfig.FillStruct(configStruct); err != nil {
 		t.Fatalf("problem setting struct values from AppConfig: %s\n", err)
+	}
+
+	if configStruct.Host != "localhost" {
+		t.Errorf("unexpected value for configStruct.Host ('%s'), expected: %s\n", configStruct.Host, "localhost")
+	}
+
+	if configStruct.Port != 8080 {
+		t.Errorf("unexpected value for configStruct.Port ('%d'), expected: %d\n", configStruct.Port, 8080)
+	}
+
+	if configStruct.ReadTimeout != 5*time.Second {
+		t.Errorf("unexpected value for configStruct.Host ('%s'), expected: %s\n", configStruct.ReadTimeout, 5*time.Second)
+	}
+
+	if configStruct.DBSwitchTime != dbSwitchTime {
+		t.Errorf("unexpected value for configStruct.Host ('%s'), expected: %s\n", configStruct.DBSwitchTime, dbSwitchTime)
+	}
+
+	if configStruct.DebugMode != true {
+		t.Errorf("unexpected value for configStruct.Host ('%v'), expected: %v\n", configStruct.DebugMode, true)
 	}
 }
 

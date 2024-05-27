@@ -425,13 +425,11 @@ func (c *AppConfig) GetDurations(fieldSetKey, fieldKey string) ([]time.Duration,
 	return val, nil
 }
 
-func (c *AppConfig) FillStruct(configStruct any) error {
-	defer func() error {
+func (c *AppConfig) FillStruct(configStruct any) (err error) {
+	defer func() {
 		if r := recover(); r != nil {
-			return fmt.Errorf("problem filling struct: %s", r)
+			err = fmt.Errorf("problem filling struct: %s", r)
 		}
-
-		return nil
 	}()
 
 	if reflect.TypeOf(configStruct).Kind() != reflect.Pointer {
@@ -462,14 +460,15 @@ func (c *AppConfig) FillStruct(configStruct any) error {
 		}
 
 		fieldTagValue := field.Tag.Get("bconf")
-
-		var fieldKey string
-
+		fieldKey := ""
 		fieldSetKey := baseFieldSet
 
-		if fieldTagValue == "" {
+		switch fieldTagValue {
+		case "":
 			fieldKey = field.Name
-		} else {
+		case "-":
+			continue
+		default:
 			fieldTagParams := strings.Split(fieldTagValue, ",")
 			fieldLocation := strings.Split(fieldTagParams[0], ".")
 
@@ -480,6 +479,10 @@ func (c *AppConfig) FillStruct(configStruct any) error {
 				fieldSetKey = fieldLocation[0]
 				fieldKey = fieldLocation[1]
 			}
+		}
+
+		if fieldSetKey == "" {
+			return fmt.Errorf("unidentified field-set for field: %s", fieldKey)
 		}
 
 		appConfigField, err := c.GetField(fieldSetKey, fieldKey)
@@ -493,7 +496,6 @@ func (c *AppConfig) FillStruct(configStruct any) error {
 		}
 
 		configStructValue.Field(i).Set(reflect.ValueOf(val))
-		// fmt.Printf("'%s' Field (type: '%s') bconf tag value = '%s'\n", fieldName, field.Type, fieldTagValue)
 	}
 
 	return nil

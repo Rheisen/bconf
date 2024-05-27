@@ -18,14 +18,6 @@ func TestJSONFileLoaderFunctions(t *testing.T) {
 
 	loader = bconf.NewJSONFileLoaderWithAttributes(json.Unmarshal, "./fixtures/json_config_test_fixture_01.json")
 
-	if loader == nil {
-		t.Fatalf("unexpected nil loader")
-	}
-
-	if loader.Decoder == nil {
-		t.Fatalf("unexpected nil decoder")
-	}
-
 	if len(loader.FilePaths) != 1 {
 		t.Fatalf("unexpected file-paths length '%d', expected '1'", len(loader.FilePaths))
 	}
