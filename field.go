@@ -10,6 +10,8 @@ import (
 	"github.com/rheisen/bconf/bconfconst"
 )
 
+const emptyFieldError = "empty field value"
+
 // Fields is a slice of Field elements providing context for configuration values
 type Fields []*Field
 
@@ -279,7 +281,7 @@ func (f *Field) getValue() (any, error) {
 		return f.generatedDefault, nil
 	}
 
-	return nil, fmt.Errorf("empty field value")
+	return nil, fmt.Errorf(emptyFieldError)
 }
 
 // func (f *Field) getValueFrom(loader string) (any, error) {

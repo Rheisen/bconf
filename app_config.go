@@ -491,7 +491,9 @@ func (c *AppConfig) FillStruct(configStruct any) (err error) {
 		}
 
 		val, err := appConfigField.getValue()
-		if err != nil {
+		if err != nil && err.Error() == emptyFieldError {
+			continue
+		} else if err != nil {
 			return fmt.Errorf("problem getting field '%s.%s' value: %w", fieldSetKey, fieldKey, err)
 		}
 
