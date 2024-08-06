@@ -1,3 +1,5 @@
 package bconf
 
-type ConfigStruct struct{}
+type ConfigStruct struct {
+	FieldSet string
+}

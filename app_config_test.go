@@ -1621,6 +1621,20 @@ func TestAppConfigFillStruct(t *testing.T) {
 		t.Fatalf("problem adding field set to AppConfig: %v\n", errs)
 	}
 
+	errs = appConfig.AddFieldSet(
+		bconf.FSB().Key("ext_api").Fields(
+			bconf.FB().Key("host").Type(bconf.String).Default("0.0.0.0").Create(),
+			bconf.FB().Key("port").Type(bconf.Int).Default(8085).Create(),
+			bconf.FB().Key("read_timeout").Type(bconf.Duration).Default(10*time.Second).Create(),
+			bconf.FB().Key("db_switch_time").Type(bconf.Time).Default(dbSwitchTime).Create(),
+			bconf.FB().Key("debug_mode").Type(bconf.Bool).Default(true).Create(),
+		).Create(),
+	)
+
+	if len(errs) > 0 {
+		t.Fatalf("problem adding field set to AppConfig: %v\n", errs)
+	}
+
 	unfillableStruct := TestAPIConfig{}
 	if err := appConfig.FillStruct(unfillableStruct); err == nil {
 		t.Fatalf("expected error passing concrete struct\n")
@@ -1658,6 +1672,20 @@ func TestAppConfigFillStruct(t *testing.T) {
 
 	if configStruct.DebugMode != true {
 		t.Errorf("unexpected value for configStruct.Host ('%v'), expected: %v\n", configStruct.DebugMode, true)
+	}
+
+	overrideConfigStruct := &TestAPIConfig{ConfigStruct: bconf.ConfigStruct{FieldSet: "ext_api"}}
+
+	if err := appConfig.FillStruct(overrideConfigStruct); err != nil {
+		t.Fatalf("problem setting override struct values from AppConfig: %s\n", err)
+	}
+
+	if overrideConfigStruct.Host != "0.0.0.0" {
+		t.Errorf("unexpected value for overrideConfigStruct.Host ('%s'), expected: %s\n", configStruct.Host, "0.0.0.0")
+	}
+
+	if overrideConfigStruct.Port != 8085 {
+		t.Errorf("unexpected value for overrideConfigStruct.Port ('%d'), expected: %d\n", configStruct.Port, 8085)
 	}
 }
 

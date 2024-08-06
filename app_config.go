@@ -452,6 +452,10 @@ func (c *AppConfig) FillStruct(configStruct any) (err error) {
 
 	baseFieldSet := configStructFieldType.Tag.Get("bconf")
 
+	if overrideValue := configStructField.FieldByName("FieldSet"); overrideValue.String() != "" {
+		baseFieldSet = overrideValue.String()
+	}
+
 	for i := 0; i < configStructValue.NumField(); i++ {
 		field := configStructType.Field(i)
 
