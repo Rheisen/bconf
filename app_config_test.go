@@ -1587,6 +1587,7 @@ func TestAppConfigTimeFieldTypes(t *testing.T) {
 }
 
 func TestAppConfigFillStruct(t *testing.T) {
+	//nolint:govet // doesn't need to be optimal for tests
 	type TestAPIConfig struct {
 		bconf.ConfigStruct `bconf:"api"`
 		DBSwitchTime       time.Time     `bconf:"db_switch_time"`
