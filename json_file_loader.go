@@ -16,6 +16,10 @@ func NewJSONFileLoader() *JSONFileLoader {
 }
 
 func NewJSONFileLoaderWithAttributes(decoder JSONUnmarshal, filePaths ...string) *JSONFileLoader {
+	if decoder == nil {
+		decoder = json.Unmarshal
+	}
+
 	return &JSONFileLoader{
 		Decoder:   decoder,
 		FilePaths: filePaths,
@@ -131,14 +135,8 @@ func (l *JSONFileLoader) fileMaps() []map[string]any {
 		}
 
 		fileMap := map[string]any{}
-		if l.Decoder != nil {
-			if err := l.Decoder(fileBytes, &fileMap); err != nil {
-				continue
-			}
-		} else {
-			if err := json.Unmarshal(fileBytes, &fileMap); err != nil {
-				continue
-			}
+		if err := l.Decoder(fileBytes, &fileMap); err != nil {
+			continue
 		}
 
 		fileMaps = append(fileMaps, fileMap)

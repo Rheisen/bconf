@@ -1586,6 +1586,113 @@ func TestAppConfigTimeFieldTypes(t *testing.T) {
 	}
 }
 
+func TestAppConfigFillStruct(t *testing.T) {
+	//nolint:govet // doesn't need to be optimal for tests
+	type TestAPIConfig struct {
+		bconf.ConfigStruct `bconf:"api"`
+		DBSwitchTime       time.Time     `bconf:"db_switch_time"`
+		Host               string        `bconf:"host"`
+		ReadTimeout        time.Duration `bconf:"read_timeout"`
+		Port               int           `bconf:"port"`
+		DebugMode          bool          `bconf:"api.debug_mode"`
+		LogPrefix          string        `bconf:"log_prefix"`
+	}
+
+	type InvalidAPIConfigStruct struct {
+		Host string `bconf:"host"`
+		Port int    `bconf:"port"`
+	}
+
+	configStruct := &TestAPIConfig{}
+
+	appConfig := createBaseAppConfig()
+
+	dbSwitchTime := time.Now().Add(-100 * time.Hour)
+
+	errs := appConfig.AddFieldSet(
+		bconf.FSB().Key("api").Fields(
+			bconf.FB().Key("host").Type(bconf.String).Default("localhost").Create(),
+			bconf.FB().Key("port").Type(bconf.Int).Default(8080).Create(),
+			bconf.FB().Key("read_timeout").Type(bconf.Duration).Default(5*time.Second).Create(),
+			bconf.FB().Key("db_switch_time").Type(bconf.Time).Default(dbSwitchTime).Create(),
+			bconf.FB().Key("debug_mode").Type(bconf.Bool).Default(true).Create(),
+			bconf.FB().Key("log_prefix").Type(bconf.String).Create(),
+		).Create(),
+	)
+
+	if len(errs) > 0 {
+		t.Fatalf("problem adding field set to AppConfig: %v\n", errs)
+	}
+
+	errs = appConfig.AddFieldSet(
+		bconf.FSB().Key("ext_api").Fields(
+			bconf.FB().Key("host").Type(bconf.String).Default("0.0.0.0").Create(),
+			bconf.FB().Key("port").Type(bconf.Int).Default(8085).Create(),
+			bconf.FB().Key("read_timeout").Type(bconf.Duration).Default(10*time.Second).Create(),
+			bconf.FB().Key("db_switch_time").Type(bconf.Time).Default(dbSwitchTime).Create(),
+			bconf.FB().Key("debug_mode").Type(bconf.Bool).Default(true).Create(),
+			bconf.FB().Key("log_prefix").Type(bconf.String).Create(),
+		).Create(),
+	)
+
+	if len(errs) > 0 {
+		t.Fatalf("problem adding field set to AppConfig: %v\n", errs)
+	}
+
+	unfillableStruct := TestAPIConfig{}
+	if err := appConfig.FillStruct(unfillableStruct); err == nil {
+		t.Fatalf("expected error passing concrete struct\n")
+	}
+
+	notAStruct := 20
+	if err := appConfig.FillStruct(&notAStruct); err == nil {
+		t.Fatalf("expected error passing pointer to a non-struct type\n")
+	}
+
+	invalidConfigStruct := &InvalidAPIConfigStruct{}
+	if err := appConfig.FillStruct(invalidConfigStruct); err == nil {
+		t.Fatalf("expected error passing struct missing bconf.ConfigStruct field\n")
+	}
+
+	if err := appConfig.FillStruct(configStruct); err != nil {
+		t.Fatalf("problem setting struct values from AppConfig: %s\n", err)
+	}
+
+	if configStruct.Host != "localhost" {
+		t.Errorf("unexpected value for configStruct.Host ('%s'), expected: %s\n", configStruct.Host, "localhost")
+	}
+
+	if configStruct.Port != 8080 {
+		t.Errorf("unexpected value for configStruct.Port ('%d'), expected: %d\n", configStruct.Port, 8080)
+	}
+
+	if configStruct.ReadTimeout != 5*time.Second {
+		t.Errorf("unexpected value for configStruct.Host ('%s'), expected: %s\n", configStruct.ReadTimeout, 5*time.Second)
+	}
+
+	if configStruct.DBSwitchTime != dbSwitchTime {
+		t.Errorf("unexpected value for configStruct.Host ('%s'), expected: %s\n", configStruct.DBSwitchTime, dbSwitchTime)
+	}
+
+	if configStruct.DebugMode != true {
+		t.Errorf("unexpected value for configStruct.Host ('%v'), expected: %v\n", configStruct.DebugMode, true)
+	}
+
+	overrideConfigStruct := &TestAPIConfig{ConfigStruct: bconf.ConfigStruct{FieldSet: "ext_api"}}
+
+	if err := appConfig.FillStruct(overrideConfigStruct); err != nil {
+		t.Fatalf("problem setting override struct values from AppConfig: %s\n", err)
+	}
+
+	if overrideConfigStruct.Host != "0.0.0.0" {
+		t.Errorf("unexpected value for overrideConfigStruct.Host ('%s'), expected: %s\n", configStruct.Host, "0.0.0.0")
+	}
+
+	if overrideConfigStruct.Port != 8085 {
+		t.Errorf("unexpected value for overrideConfigStruct.Port ('%d'), expected: %d\n", configStruct.Port, 8085)
+	}
+}
+
 func createBaseAppConfig() *bconf.AppConfig {
 	appConfig := bconf.NewAppConfig(
 		"app",

@@ -41,6 +41,7 @@ In Progress
 
 ### Getting Values from `bconf.AppConfig`
 
+* `FillStruct(configStruct any) error`
 * `GetField(fieldSetKey, fieldKey string) (*bconf.Field, error)`
 * `GetString(fieldSetKey, fieldKey string) (string, error)`
 * `GetStrings(fieldSetKey, fieldKey string) ([]string, error)`
@@ -62,6 +63,7 @@ In Progress
 * Ability to get a safe map of configuration values from the `bconf.AppConfig` `ConfigMap()` function
   * (the configuration map will obfuscate values from fields with `Sensitive` parameter set to `true`)
 * Ability to reload field-sets and individual fields via the `bconf.AppConfig`
+* Ability to fill configuration structures with values from a `bconf.AppConfig`
 
 ### Limitations
 
@@ -139,10 +141,24 @@ if errs := configuration.Register(true); len(errs) > 0 {
 // (based on the loaders set above).
 logLevel, err := configuration.GetString("log", "level")
 if err != nil {
-    // handle retrieval error
+    // handle error
 }
 
-fmt.Printf("log-level: %s", logLevel)
+fmt.Printf("log-level: %s\n", logLevel)
+
+type loggerConfig struct {
+    bconf.ConfigStruct `bconf:"log"`
+    Level string `bconf:"level"`
+    Format string `bconf:"format"`
+    ColorEnabled bool `bconf:"color_enabled"`
+}
+
+logConfig := &loggerConfig{}
+if err := configuration.FillStruct(logConfig); err != nil {
+    // handle error
+}
+
+fmt.Printf("log config: %v\n", logConfig)
 ```
 
 ```go
@@ -227,17 +243,32 @@ if errs := configuration.Register(true); len(errs) > 0 {
 // (based on the loaders set above).
 logLevel, err := configuration.GetString("log", "level")
 if err != nil {
-    // handle retrieval error
+    // handle error
 }
 
-fmt.Printf("log-level: %s", logLevel)
+fmt.Printf("log-level: %s\n", logLevel)
+
+type loggerConfig struct {
+    bconf.ConfigStruct `bconf:"log"`
+    Level string `bconf:"level"`
+    Format string `bconf:"format"`
+    ColorEnabled bool `bconf:"color_enabled"`
+}
+
+logConfig := &loggerConfig{}
+if err := configuration.FillStruct(logConfig); err != nil {
+    // handle error
+}
+
+fmt.Printf("log config: %v\n", logConfig)
 ```
 
 In both of the code blocks above, a `bconf.AppConfig` is defined with two field-sets (which group configuration related
 to the application and logging in this case), and registered with help flag parsing.
 
 If this code was executed in a `main()` function, it would print the log level picked up by the configuration from the
-flags or run-time environment before falling back on the defined default value of "info".
+flags or run-time environment before falling back on the defined default value of "info". It would then fill the
+`logConfig` struct with multiple values from the log field-set fields, and print those values as well.
 
 If this code was executed inside the `main()` function and passed a `--help` or `-h` flag, it would print the following
 output:
