@@ -1592,8 +1592,9 @@ func TestAppConfigFillStruct(t *testing.T) {
 		DBSwitchTime       time.Time     `bconf:"db_switch_time"`
 		Host               string        `bconf:"host"`
 		ReadTimeout        time.Duration `bconf:"read_timeout"`
-		Port               int           `bconf:"port"`
+		Port               int           `bconf:"api.port"`
 		DebugMode          bool          `bconf:"debug_mode"`
+		LogPrefix          string        `bconf:"log_prefix"`
 	}
 
 	type InvalidAPIConfigStruct struct {
@@ -1614,6 +1615,7 @@ func TestAppConfigFillStruct(t *testing.T) {
 			bconf.FB().Key("read_timeout").Type(bconf.Duration).Default(5*time.Second).Create(),
 			bconf.FB().Key("db_switch_time").Type(bconf.Time).Default(dbSwitchTime).Create(),
 			bconf.FB().Key("debug_mode").Type(bconf.Bool).Default(true).Create(),
+			bconf.FB().Key("log_prefix").Type(bconf.String).Create(),
 		).Create(),
 	)
 
@@ -1628,6 +1630,7 @@ func TestAppConfigFillStruct(t *testing.T) {
 			bconf.FB().Key("read_timeout").Type(bconf.Duration).Default(10*time.Second).Create(),
 			bconf.FB().Key("db_switch_time").Type(bconf.Time).Default(dbSwitchTime).Create(),
 			bconf.FB().Key("debug_mode").Type(bconf.Bool).Default(true).Create(),
+			bconf.FB().Key("log_prefix").Type(bconf.String).Create(),
 		).Create(),
 	)
 
