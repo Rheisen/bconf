@@ -1592,8 +1592,8 @@ func TestAppConfigFillStruct(t *testing.T) {
 		DBSwitchTime       time.Time     `bconf:"db_switch_time"`
 		Host               string        `bconf:"host"`
 		ReadTimeout        time.Duration `bconf:"read_timeout"`
-		Port               int           `bconf:"api.port"`
-		DebugMode          bool          `bconf:"debug_mode"`
+		Port               int           `bconf:"port"`
+		DebugMode          bool          `bconf:"api.debug_mode"`
 		LogPrefix          string        `bconf:"log_prefix"`
 	}
 
