@@ -3,9 +3,9 @@ package bconf
 import "fmt"
 
 type FieldCondition struct {
-	Condition   func(fieldValue any) (bool, error)
+	Condition   func(fieldValues map[string]any) (bool, error)
 	FieldSetKey string
-	FieldKey    string
+	FieldKeys   []string
 }
 
 func (c *FieldCondition) Clone() LoadCondition {
@@ -14,12 +14,12 @@ func (c *FieldCondition) Clone() LoadCondition {
 	return &clone
 }
 
-func (c *FieldCondition) FieldDependency() (fieldSetKey, fieldKey string) {
-	return c.FieldSetKey, c.FieldKey
+func (c *FieldCondition) FieldDependency() (fieldSetKey string, fieldKeys []string) {
+	return c.FieldSetKey, c.FieldKeys
 }
 
-func (c *FieldCondition) Load(value any) (bool, error) {
-	return c.Condition(value)
+func (c *FieldCondition) Load(values map[string]any) (bool, error) {
+	return c.Condition(values)
 }
 
 func (c *FieldCondition) Validate() []error {
@@ -29,8 +29,8 @@ func (c *FieldCondition) Validate() []error {
 		errs = append(errs, fmt.Errorf("field-set key required for field condition"))
 	}
 
-	if c.FieldKey == "" {
-		errs = append(errs, fmt.Errorf("field key required for field condition"))
+	if len(c.FieldKeys) == 0 {
+		errs = append(errs, fmt.Errorf("at least one field key required for field condition"))
 	}
 
 	return errs

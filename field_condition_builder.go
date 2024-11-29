@@ -19,14 +19,14 @@ func (b *FieldConditionBuilder) FieldSetKey(value string) *FieldConditionBuilder
 	return b
 }
 
-func (b *FieldConditionBuilder) FieldKey(value string) *FieldConditionBuilder {
+func (b *FieldConditionBuilder) AddFieldKey(value string) *FieldConditionBuilder {
 	b.init()
-	b.condition.FieldKey = value
+	b.condition.FieldKeys = append(b.condition.FieldKeys, value)
 
 	return b
 }
 
-func (b *FieldConditionBuilder) Condition(value func(fieldValue any) (bool, error)) *FieldConditionBuilder {
+func (b *FieldConditionBuilder) Condition(value func(fieldValues map[string]any) (bool, error)) *FieldConditionBuilder {
 	b.init()
 	b.condition.Condition = value
 

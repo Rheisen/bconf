@@ -53,19 +53,19 @@ func TestFieldSetBuilderLoadConditions(t *testing.T) {
 	loadConditionFieldKey := "test_field_key"
 
 	fieldSet := bconf.FSB().LoadConditions(
-		bconf.FCB().FieldSetKey(loadConditionFieldSetKey).FieldKey(loadConditionFieldKey).Create(),
+		bconf.FCB().FieldSetKey(loadConditionFieldSetKey).AddFieldKey(loadConditionFieldKey).Create(),
 	).Create()
 
 	if len(fieldSet.LoadConditions) != 1 {
 		t.Fatalf("unexpected load-conditions length '%d', expected 1", len(fieldSet.LoadConditions))
 	}
 
-	fieldSetKey, fieldKey := fieldSet.LoadConditions[0].FieldDependency()
+	fieldSetKey, fieldKeys := fieldSet.LoadConditions[0].FieldDependency()
 	if fieldSetKey != loadConditionFieldSetKey {
 		t.Fatalf("unexpected field-set key '%s', expected '%s'", fieldSetKey, loadConditionFieldSetKey)
 	}
 
-	if fieldKey != loadConditionFieldKey {
-		t.Fatalf("unexpected field key '%s', expected '%s'", fieldKey, loadConditionFieldKey)
+	if fieldKeys[0] != loadConditionFieldKey {
+		t.Fatalf("unexpected field key '%s', expected '%s'", fieldKeys, loadConditionFieldKey)
 	}
 }

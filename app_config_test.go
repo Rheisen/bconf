@@ -70,9 +70,9 @@ func TestAppConfigHelpString(t *testing.T) {
 		LoadConditions: bconf.LoadConditions{
 			&bconf.FieldCondition{
 				FieldSetKey: defaultFieldSetKey,
-				FieldKey:    stringFieldKey,
-				Condition: func(fieldValue any) (bool, error) {
-					val, ok := fieldValue.(string)
+				FieldKeys:   []string{stringFieldKey},
+				Condition: func(fieldValues map[string]any) (bool, error) {
+					val, ok := fieldValues[stringFieldKey].(string)
 					if !ok {
 						return false, fmt.Errorf("unexpected field value type")
 					}
@@ -159,9 +159,9 @@ func TestAppConfig(t *testing.T) {
 		LoadConditions: bconf.LoadConditions{
 			&bconf.FieldCondition{
 				FieldSetKey: "app",
-				FieldKey:    "connect_sqlite",
-				Condition: func(fieldValue any) (bool, error) {
-					val, ok := fieldValue.(bool)
+				FieldKeys:   []string{"connect_sqlite"},
+				Condition: func(fieldValues map[string]any) (bool, error) {
+					val, ok := fieldValues["connect_sqlite"].(bool)
 					if !ok {
 						return false, fmt.Errorf("unexpected field-type value")
 					}
@@ -342,8 +342,8 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 		LoadConditions: bconf.LoadConditions{
 			&bconf.FieldCondition{
 				FieldSetKey: defaultFieldSetKey,
-				FieldKey:    defaultFieldSetLoadAppOneKey,
-				Condition: func(fieldValue any) (bool, error) {
+				FieldKeys:   []string{defaultFieldSetLoadAppOneKey},
+				Condition: func(fieldValues map[string]any) (bool, error) {
 					return true, nil
 				},
 			},
@@ -356,8 +356,8 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 		LoadConditions: bconf.LoadConditions{
 			&bconf.FieldCondition{
 				FieldSetKey: defaultFieldSetKey,
-				FieldKey:    defaultFieldSetLoadAppTwoKey,
-				Condition: func(fieldValue any) (bool, error) {
+				FieldKeys:   []string{defaultFieldSetLoadAppTwoKey},
+				Condition: func(fieldValues map[string]any) (bool, error) {
 					return true, nil
 				},
 			},
@@ -370,7 +370,7 @@ func TestAppConfigWithLoadConditions(t *testing.T) {
 		LoadConditions: bconf.LoadConditions{
 			&bconf.FieldCondition{
 				FieldSetKey: defaultFieldSetKey,
-				Condition: func(fieldValue any) (bool, error) {
+				Condition: func(fieldValues map[string]any) (bool, error) {
 					return true, nil
 				},
 			},
@@ -444,21 +444,21 @@ func TestAppConfigWithFieldLoadConditions(t *testing.T) {
 	fieldSetWithInternalFieldDependencies := bconf.FSB().Key(fieldSetOneKey).Fields(
 		bconf.FB().Key(fieldAKey).Type(bconf.String).Default("postgres").Create(),
 		bconf.FB().Key(fieldBKey).Type(bconf.String).LoadConditions(
-			bconf.FCB().FieldKey(fieldAKey).Condition(func(val any) (bool, error) {
+			bconf.FCB().AddFieldKey(fieldAKey).Condition(func(_ map[string]any) (bool, error) {
 				return true, nil
 			}).Create(),
 		).Create(),
 		bconf.FB().Key(fieldCKey).Type(bconf.String).LoadConditions(
 			bconf.
 				FCB().
-				FieldKey(fieldAKey).
+				AddFieldKey(fieldAKey).
 				FieldSetKey(fieldSetOneKey).
-				Condition(func(val any) (bool, error) {
+				Condition(func(_ map[string]any) (bool, error) {
 					return true, nil
 				}).Create(),
 		).Create(),
 		bconf.FB().Key(fieldDKey).Type(bconf.String).Default("should_not_be_overridden").LoadConditions(
-			bconf.FCB().FieldKey(fieldAKey).Condition(func(val any) (bool, error) {
+			bconf.FCB().AddFieldKey(fieldAKey).Condition(func(_ map[string]any) (bool, error) {
 				return false, nil
 			}).Create(),
 		).Create(),
@@ -490,7 +490,7 @@ func TestAppConfigWithFieldLoadConditions(t *testing.T) {
 	fieldSetWithMissingInternalFieldDependencies := bconf.FSB().Key(fieldSetThreeKey).Fields(
 		bconf.FB().Key(fieldFKey).Type(bconf.String).Create(),
 		bconf.FB().Key(fieldGKey).Type(bconf.String).LoadConditions(
-			bconf.FCB().FieldKey(fieldAKey).Condition(func(val any) (bool, error) {
+			bconf.FCB().AddFieldKey(fieldAKey).Condition(func(_ map[string]any) (bool, error) {
 				return true, nil
 			}).Create(),
 		).Create(),
@@ -498,7 +498,7 @@ func TestAppConfigWithFieldLoadConditions(t *testing.T) {
 
 	fieldSetWithMissingExternalFieldDependencies := bconf.FSB().Key(fieldSetFourKey).Fields(
 		bconf.FB().Key(fieldAKey).Type(bconf.String).LoadConditions(
-			bconf.FCB().FieldSetKey("missing").FieldKey(fieldBKey).Condition(func(val any) (bool, error) {
+			bconf.FCB().FieldSetKey("missing").AddFieldKey(fieldBKey).Condition(func(_ map[string]any) (bool, error) {
 				return true, nil
 			}).Create(),
 		).Create(),
@@ -583,8 +583,8 @@ func TestAppConfigAddField(t *testing.T) {
 	}
 
 	fieldMissingLoadCondition := bconf.FB().Key("field_missing_load_condition").Type(bconf.String).LoadConditions(
-		bconf.FCB().FieldKey("missing_key").Condition(
-			func(val any) (bool, error) {
+		bconf.FCB().AddFieldKey("missing_key").Condition(
+			func(_ map[string]any) (bool, error) {
 				return true, nil
 			},
 		).Create(),
@@ -644,8 +644,8 @@ func TestAppConfigLoadFieldSet(t *testing.T) {
 	errs = appConfig.AddFieldSet(bconf.FSB().Key("bad_field_condition_conditional").Fields(
 		bconf.FB().Key("some_key").Type(bconf.String).Default("value").Create(),
 	).LoadConditions(
-		bconf.NewFieldConditionBuilder().FieldSetKey("default").FieldKey("field_key").Condition(
-			func(fieldValue any) (bool, error) {
+		bconf.NewFieldConditionBuilder().FieldSetKey("default").AddFieldKey("field_key").Condition(
+			func(_ map[string]any) (bool, error) {
 				return true, fmt.Errorf("condition error")
 			},
 		).Create(),
@@ -715,7 +715,7 @@ func TestAppConfigLoadField(t *testing.T) {
 	}
 
 	addedFieldC := bconf.FB().Key("field_c").Type(bconf.String).LoadConditions(
-		bconf.FCB().FieldKey("field_b").Condition(func(val any) (bool, error) {
+		bconf.FCB().AddFieldKey("field_b").Condition(func(_ map[string]any) (bool, error) {
 			return true, nil
 		}).Create(),
 	).Create()
@@ -738,7 +738,7 @@ func TestAppConfigLoadField(t *testing.T) {
 	os.Setenv("STANDARD_D_FIELD_D", "expected_value")
 
 	addedFieldD := bconf.FB().Key("field_d").Type(bconf.String).LoadConditions(
-		bconf.FCB().FieldKey("field_a").Condition(func(val any) (bool, error) {
+		bconf.FCB().AddFieldKey("field_a").Condition(func(_ map[string]any) (bool, error) {
 			return true, nil
 		}).Create(),
 	).Create()
@@ -762,7 +762,7 @@ func TestAppConfigLoadField(t *testing.T) {
 
 	// A test case for loading a field with a falsy field load condition
 	addedFieldE := bconf.FB().Key("field_e").Type(bconf.String).LoadConditions(
-		bconf.FCB().FieldKey("field_a").Condition(func(val any) (bool, error) {
+		bconf.FCB().AddFieldKey("field_a").Condition(func(_ map[string]any) (bool, error) {
 			return false, nil
 		}).Create(),
 	).Create()
